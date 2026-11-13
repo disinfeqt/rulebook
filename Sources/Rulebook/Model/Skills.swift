@@ -332,8 +332,7 @@ enum SkillScan {
             guard let group = groups[key] else { continue }
             if locks[group.base.path] == nil { locks[group.base.path] = installed(in: group.base, isGlobal: group.isGlobal) }
             let source = group.copies[0].isSynced ? nil : locks[group.base.path]?[group.copies[0].name]
-            // Skills synced from the claude.ai account are global too, but they aren't the user's own folders.
-            var projectID = "global", projectName = group.copies[0].isSynced ? "claude.ai" : L("Global"), rel = ""
+            var projectID = "global", projectName = L("Global"), rel = ""
             if !group.isGlobal {
                 let project = Scanner.projectRoot(for: group.base, root: root, gitRoots: gitRoots)
                 projectID = project.path

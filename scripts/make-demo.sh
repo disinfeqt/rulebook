@@ -434,6 +434,22 @@ for name in beacon ember heron meadow; do
   printf '{\n  "version": 1,\n  "skills": {\n    "pr-description": {\n      "source": "northwind/agent-skills",\n      "sourceType": "github"\n    }\n  }\n}\n' > $name/skills-lock.json
 done
 
+# A set of skills one project got from one source. Rulebook shows them as one row that opens.
+for name in setup schema migrate deploy backup; do
+skill orchard/.agents/skills/fern-$name fern-$name "Fern $name: the steps and checks for the $name stage of a Fern database. Use when working on Fern $name." <<FERN
+# Fern $name
+
+Run \`fern $name --check\` first and read what it reports before changing anything.
+FERN
+mkdir -p orchard/.claude/skills && ln -s ../../.agents/skills/fern-$name orchard/.claude/skills/fern-$name
+done
+printf '\nFollow [the rollback guide](references/rollback.md) when a deploy fails.\n' >> orchard/.agents/skills/fern-deploy/SKILL.md
+{
+  printf '{\n  "version": 1,\n  "skills": {\n'
+  for name in setup schema migrate deploy; do printf '    "fern-%s": { "source": "fernhq/skills", "sourceType": "github" },\n' $name; done
+  printf '    "fern-backup": { "source": "fernhq/skills", "sourceType": "github" }\n  }\n}\n'
+} > orchard/skills-lock.json
+
 # Global skills, when a stand-in home was given.
 if [ -n "$DEMO_HOME" ]; then
   mkdir -p "$DEMO_HOME/.claude/skills" "$DEMO_HOME/.codex/skills"

@@ -1,26 +1,38 @@
 import SwiftUI
 
-/// One row of the skills table: a skill, or a link or folder in a skills folder that isn't one. It carries the
-/// values the columns sort by.
+/// One row of the skills table: a skill, something in a skills folder that isn't one, or the skills one project
+/// got from one source, which open under it. It carries the values the columns sort by.
 struct SkillRow: Identifiable {
     let id: String
-    let entry: SkillEntry
-    /// Nil for a link that points nowhere and for an empty folder.
-    let doc: Doc?
+    /// Nil for a row that stands for several skills.
+    var entry: SkillEntry? = nil
+    /// Nil for a link that points nowhere, for an empty folder and for a row of several skills.
+    var doc: Doc? = nil
+    /// The skill's name, or for several skills their source, so they sort among the names.
     let name: String
     let project: String
-    /// Where `npx skills` installed it from. Empty for a skill it doesn't manage.
+    /// Where it was installed from: the repository `npx skills` got it from, or claude.ai for a skill synced
+    /// from the account. Empty for a skill of the user's own.
     let source: String
-    let description: String
-    let issue: Issue?
+    var description = ""
+    var issue: Issue? = nil
+    /// Who loads it, in a word or two.
+    let readBy: String
     /// More agents load it the higher it is, as in the overview.
-    let readBy: Int
+    let readByRank: Int
     /// What the name and description take up in every session, where every skill is listed.
     let listed: Int
     /// What SKILL.md takes up once an agent uses the skill.
     let tokens: Int
     let urgency: Int
     let modified: Date
+    /// The skills of a row that stands for several. They don't repeat its project and source.
+    var children: [SkillRow] = []
+    var isChild = false
+
+    var isGroup: Bool { !children.isEmpty }
+    /// How many of the skills under this row have something to fix.
+    var attention: Int { children.filter { $0.urgency > 0 }.count }
 }
 
 /// Every skill in the projects and in the home folder: who loads it and what's wrong with it.
@@ -29,6 +41,12 @@ struct SkillsView: View {
     @State private var selection: Set<String> = []
     @State private var sortOrder = [KeyPathComparator(\SkillRow.urgency, order: .reverse),
                                     KeyPathComparator(\SkillRow.name)]
+    /// Sets of skills start closed, so a project with forty from one source is one row. These are the ones
+    /// opened since, or with `--open-skill-sets`, the ones closed since.
+    @State private var toggled: Set<String> = []
+
+    /// A project's skills from one source are shown as one row from this many up.
+    private let groupSize = 3
 
     var body: some View {
         Group {
@@ -46,7 +64,7 @@ struct SkillsView: View {
                     Text("Nothing needs attention").foregroundStyle(.secondary)
                 } else {
                     VStack(spacing: 0) {
-                        table(rows)
+                        table(grouped(rows))
                         Divider()
                         footer(rows)
                     }
@@ -68,23 +86,29 @@ struct SkillsView: View {
         return attention == 0 ? path : path + " — " + LN(attention, "%d skill needs attention", "%d skills need attention")
     }
 
-    /// The sidebar's search field and the attention filter narrow this list too.
+    /// Whether the list is narrowed by the sidebar's search field or the attention filter.
+    private var isFiltered: Bool {
+        model.attentionOnly || !model.searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// One row per skill. The sidebar's search field and the attention filter narrow this list too.
     private func rows(_ scan: ScanResult) -> [SkillRow] {
         let query = model.searchText.trimmingCharacters(in: .whitespaces).lowercased()
         return scan.skills.compactMap { entry in
             let doc = entry.docID.flatMap(model.doc)
             let text = doc.map(model.text(for:)) ?? ""
             let description = SkillScan.frontmatter(in: text)?.description ?? ""
+            let source = doc?.skill?.source ?? (doc?.skill?.isSynced == true ? "claude.ai" : "")
             let issue = doc == nil ? entry.issue : doc?.topIssue
             if model.attentionOnly, (issue?.severity ?? .info) < .warning, !(doc.map { model.isDirty($0.id) } ?? false) { return nil }
-            if !query.isEmpty, ![entry.name, entry.projectName, description, doc?.skill?.source ?? ""]
-                .contains(where: { $0.lowercased().contains(query) }) {
+            if !query.isEmpty, ![entry.name, entry.projectName, description, source].contains(where: { $0.lowercased().contains(query) }) {
                 return nil
             }
             return SkillRow(
                 id: entry.id, entry: entry, doc: doc, name: entry.name,
                 project: doc.map { $0.relativeDir.isEmpty ? $0.projectName : $0.projectName + "/" + $0.relativeDir } ?? entry.projectName,
-                source: doc?.skill?.source ?? "", description: description, issue: issue, readBy: doc?.readByRank ?? -1,
+                source: source, description: description, issue: issue,
+                readBy: doc?.readBy ?? "", readByRank: doc?.readByRank ?? -1,
                 listed: doc == nil ? 0 : SkillScan.listingTokens(name: entry.name, description: description),
                 tokens: MarkdownScan.stats(text).tokens,
                 urgency: issue.map { $0.severity >= .warning ? $0.severity.rawValue + 1 : 0 } ?? 0,
@@ -92,15 +116,47 @@ struct SkillsView: View {
         }
     }
 
+    /// The rows with each project's skills from one source put under one row. A narrowed list stays flat, so
+    /// what was searched for is in sight.
+    private func grouped(_ rows: [SkillRow]) -> [SkillRow] {
+        guard !isFiltered else { return rows }
+        var sets: [String: [SkillRow]] = [:]
+        for row in rows where !row.source.isEmpty {
+            sets["set:" + row.project + "\u{0}" + row.source, default: []].append(row)
+        }
+        var result = rows.filter { $0.source.isEmpty }
+        for (id, members) in sets {
+            guard members.count >= groupSize else { result += members; continue }
+            let readers = Set(members.map(\.readBy))
+            result.append(SkillRow(
+                id: id, name: members[0].source, project: members[0].project, source: members[0].source,
+                readBy: readers.count == 1 ? members[0].readBy : L("Varies"),
+                readByRank: members.map(\.readByRank).min() ?? 0,
+                listed: members.reduce(0) { $0 + $1.listed }, tokens: members.reduce(0) { $0 + $1.tokens },
+                urgency: members.map(\.urgency).max() ?? 0,
+                modified: members.map(\.modified).max() ?? .distantPast,
+                children: members.map { var child = $0; child.isChild = true; return child }))
+        }
+        return result
+    }
+
     private func table(_ rows: [SkillRow]) -> some View {
         // Cells and the row menu are given the model, as in the overview: a table cell doesn't always get the
         // window's environment on macOS.
         let model = model
-        let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
-        return Table(rows.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
+        var byID: [String: SkillRow] = [:]
+        for row in rows {
+            byID[row.id] = row
+            for child in row.children { byID[child.id] = child }
+        }
+        return Table(of: SkillRow.self, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Skill", value: \.name) { row in
                 HStack(spacing: 6) {
-                    Text(row.name).foregroundStyle(row.doc == nil ? HierarchicalShapeStyle.secondary : .primary)
+                    if row.isGroup {
+                        Text(LN(row.children.count, "%d skill", "%d skills"))
+                    } else {
+                        Text(row.name).foregroundStyle(row.doc == nil ? HierarchicalShapeStyle.secondary : .primary)
+                    }
                     if let doc = row.doc, model.isDirty(doc.id) {
                         Circle().fill(.secondary).frame(width: 6, height: 6).help("Unsaved changes")
                     }
@@ -110,20 +166,23 @@ struct SkillsView: View {
             }
             .width(min: 120, ideal: 220, max: 360)
             TableColumn("Project", value: \.project) { row in
-                Text(row.project).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                if !row.isChild {
+                    Text(row.project).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                }
             }
             .width(min: 90, ideal: 150, max: 260)
             TableColumn("Installed From", value: \.source) { row in
-                Text(row.source).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                    .help(row.source.isEmpty ? "" : L("`npx skills` manages this skill. Updating it there replaces the folder, so changes made here don't last.").replacingOccurrences(of: "`", with: ""))
+                if !row.isChild, !row.source.isEmpty {
+                    Text(row.source).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        .help(row.source == "claude.ai" ? L("Synced from your claude.ai account")
+                              : L("`npx skills` manages this skill. Updating it there replaces the folder, so changes made here don't last.").replacingOccurrences(of: "`", with: ""))
+                }
             }
             .width(min: 90, ideal: 190, max: 300)
-            TableColumn("Read By", sortUsing: KeyPathComparator(\SkillRow.readBy)) { row in
-                if let doc = row.doc {
-                    Text(doc.readBy)
-                        .foregroundStyle(.secondary)
-                        .help([doc.readers.claude, doc.readers.others].map(\.note).filter { !$0.isEmpty }.joined(separator: "\n"))
-                }
+            TableColumn("Read By", sortUsing: KeyPathComparator(\SkillRow.readByRank)) { row in
+                Text(row.readBy)
+                    .foregroundStyle(.secondary)
+                    .help(row.doc.map { [$0.readers.claude, $0.readers.others].map(\.note).filter { !$0.isEmpty }.joined(separator: "\n") } ?? "")
             }
             .width(min: 90, ideal: 120, max: 180)
             TableColumn("Issue", sortUsing: KeyPathComparator(\SkillRow.urgency, order: .reverse)) { row in
@@ -134,11 +193,17 @@ struct SkillsView: View {
                         Image(systemName: issue.severity.icon).foregroundStyle(issue.severity.color)
                     }
                     .help(issue.detail.replacingOccurrences(of: "`", with: ""))
+                } else if row.attention > 0 {
+                    Label {
+                        Text(LN(row.attention, "%d skill needs attention", "%d skills need attention"))
+                    } icon: {
+                        Image(systemName: Severity.warning.icon).foregroundStyle(Severity.warning.color)
+                    }
                 }
             }
             .width(min: 160, ideal: 320)
             TableColumn("Tokens", sortUsing: KeyPathComparator(\SkillRow.listed, order: .reverse)) { row in
-                if row.doc != nil {
+                if row.doc != nil || row.isGroup {
                     Text(verbatim: row.listed.formatted())
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -148,36 +213,56 @@ struct SkillsView: View {
             }
             .width(min: 56, ideal: 64, max: 90)
             TableColumn("Modified", sortUsing: KeyPathComparator(\SkillRow.modified, order: .reverse)) { row in
-                if let date = row.doc?.primary.modified {
-                    Text(date.listStyle).foregroundStyle(.secondary)
+                if row.modified != .distantPast {
+                    Text(row.modified.listStyle).foregroundStyle(.secondary)
                 }
             }
             .width(min: 96, ideal: 150, max: 200)
+        } rows: {
+            ForEach(rows.sorted(using: sortOrder)) { row in
+                if row.isGroup {
+                    DisclosureTableRow(row, isExpanded: binding(row.id)) {
+                        ForEach(row.children.sorted(using: sortOrder)) { TableRow($0) }
+                    }
+                } else {
+                    TableRow(row)
+                }
+            }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
         .contextMenu(forSelectionType: String.self) { ids in
             if let row = ids.first.flatMap({ byID[$0] }) {
-                if let doc = row.doc {
+                if row.isGroup {
+                    Button(binding(row.id).wrappedValue ? "Collapse" : "Expand") { binding(row.id).wrappedValue.toggle() }
+                } else if let doc = row.doc {
                     Button("Open") { model.openSkill(doc.id) }
                     SkillMenu(doc: doc).environment(model)
-                } else {
+                } else if let entry = row.entry {
                     if case .removeSkillLink(let url)? = row.issue?.fixes.first {
                         Button("Remove Link…") { model.removeSkillLink(url) }
                     } else {
-                        Button("Move to Trash…") { model.confirmTrash(row.entry) }
+                        Button("Move to Trash…") { model.confirmTrash(entry) }
                     }
                     Divider()
-                    Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([row.entry.dir]) }
+                    Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([entry.dir]) }
                 }
             }
         } primaryAction: { ids in
             guard let row = ids.first.flatMap({ byID[$0] }) else { return }
-            if let doc = row.doc {
+            if row.isGroup {
+                binding(row.id).wrappedValue.toggle()
+            } else if let doc = row.doc {
                 model.openSkill(doc.id)
             } else if case .removeSkillLink(let url)? = row.issue?.fixes.first {
                 model.removeSkillLink(url)
             }
         }
+    }
+
+    private func binding(_ id: String) -> Binding<Bool> {
+        let startsOpen = LaunchOptions.openSkillSets
+        return Binding(get: { toggled.contains(id) != startsOpen },
+                       set: { if $0 != startsOpen { toggled.insert(id) } else { toggled.remove(id) } })
     }
 
     /// What the table holds, and what the global skills cost: each agent lists the ones it loads in every session.

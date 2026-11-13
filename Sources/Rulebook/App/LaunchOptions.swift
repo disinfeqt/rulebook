@@ -11,6 +11,7 @@ import Foundation
 ///     --settings        open the Settings window at launch
 ///     --repeated-rules  open on Repeated Rules
 ///     --skills          open on Skills
+///     --open-skill-sets show the skills a project got from one source opened out, not as one row
 enum LaunchOptions {
     static func value(_ flag: String) -> String? {
         let args = CommandLine.arguments
@@ -26,4 +27,6 @@ enum LaunchOptions {
     /// Opens on Repeated Rules instead of the overview, for the website's screenshot.
     static var showRepeatedRules: Bool { CommandLine.arguments.contains("--repeated-rules") }
     static var showSkills: Bool { CommandLine.arguments.contains("--skills") }
+    /// Opens every set of skills on the Skills page, for a picture that shows what's inside one.
+    static var openSkillSets: Bool { CommandLine.arguments.contains("--open-skill-sets") }
 }

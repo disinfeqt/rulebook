@@ -48,7 +48,7 @@ Skills lists every skill in your projects and your home folder: who loads it, wh
 | Claude Code or Other agents | The skill is only where one of them looks. One click links or moves it so both find it. |
 | Different versions | `.claude/skills` and `.agents/skills` hold folders that differ. Compare them, then keep one. |
 
-It also flags links that point nowhere, a SKILL.md without a description, links to files the skill doesn't have, a project skill hidden by a personal one of the same name, and copies that differ from the same skill in other projects. A skill opens in the editor like any other file. Folders a fix replaces go to the Trash.
+It also flags links that point nowhere, a SKILL.md without a description, links to files the skill doesn't have, a project skill hidden by a personal one of the same name, and copies that differ from the same skill in other projects. The skills a project got from one source are one row that opens, so forty from one repository don't fill the list. A skill opens in the editor like any other file. Folders a fix replaces go to the Trash.
 
 ## Audits
 

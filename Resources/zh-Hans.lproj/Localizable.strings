@@ -385,3 +385,6 @@
 /* Inspector */
 "%@. The file changed since this audit." = "%@。文件在这次审查之后有改动。";
 "Show in the file" = "在文件中显示";
+"Varies" = "不一";
+"Expand" = "展开";
+"Collapse" = "折叠";

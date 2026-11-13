@@ -26,7 +26,7 @@ if [ "${1:-}" != "--dry" ]; then
   fi
 fi
 
-echo "Archiving Rulebook $VERSION…"
+echo "Archiving Rulebook ${VERSION}…"
 xcodebuild archive -project Rulebook.xcodeproj -scheme Rulebook -configuration Release -derivedDataPath build \
   -archivePath "$ARCHIVE" -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO -quiet
 

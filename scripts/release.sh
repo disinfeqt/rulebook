@@ -8,7 +8,7 @@
 #
 # Signing and notarization go through the developer team that Xcode is signed in to (Settings ▸ Accounts),
 # using Apple's cloud-managed Developer ID certificate, so no certificate or password is kept on this Mac.
-# Set TEAM to release under a different team.
+# Set TEAM to release under a different team. Set NOTES to what changed, to put it at the top of the release notes.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -65,6 +65,8 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 echo "Rulebook $VERSION ($(lipo -archs "$APP/Contents/MacOS/Rulebook")), signed and notarized → $ZIP"
 [ "${1:-}" = "--dry" ] && exit 0
 
-gh release create "$TAG" "$ZIP" --title "Rulebook $VERSION" --notes "Download **Rulebook.zip**, open it, and drag Rulebook to your Applications folder. Needs macOS 14 or later.
+gh release create "$TAG" "$ZIP" --title "Rulebook $VERSION" --notes "${NOTES:+$NOTES
+
+}Download **Rulebook.zip**, open it, and drag Rulebook to your Applications folder. Needs macOS 14 or later.
 
 Signed and notarized by Apple, for Apple silicon and Intel Macs."

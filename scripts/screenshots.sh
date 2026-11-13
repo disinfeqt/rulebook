@@ -2,7 +2,7 @@
 # Regenerates docs/screenshots/ from the made-up projects in make-demo.sh, so no real project shows up.
 # The pictures are saved as lossless WebP, a fifth the size of PNG, so it needs cwebp (brew install webp).
 #
-#   ./scripts/screenshots.sh          # overview, editor, compare
+#   ./scripts/screenshots.sh          # overview, editor, compare, repeated
 #   ./scripts/screenshots.sh --audit  # also runs one real audit for audit.webp (needs claude or codex, uses ~1 min of usage)
 #
 # Add app arguments after a --, and OUT to save somewhere else. The Chinese set the website uses:
@@ -35,7 +35,14 @@ fi
 shot() {
   local name=$1; shift
   # The stand-in home also keeps this Mac's own settings and saved window size out of the pictures.
-  HOME="$WORK/home" CFFIXED_USER_HOME="$WORK/home" "$APP" ${EXTRA[@]+"${EXTRA[@]}"} --root "$DEMO" --no-global --store "$STORE" "$@" --snapshot "$WORK/shots/$name" >/dev/null 2>&1
+  HOME="$WORK/home" CFFIXED_USER_HOME="$WORK/home" "$APP" ${EXTRA[@]+"${EXTRA[@]}"} --root "$DEMO" --no-global --store "$STORE" "$@" --snapshot "$WORK/shots/$name" >/dev/null 2>&1 &
+  local pid=$!
+  # Started from a shell while you're using another app, it isn't let to come to the front, and SwiftUI doesn't
+  # open its window until it does. System Events can bring it forward (the terminal may ask to control it).
+  # It runs from here rather than through `open`, so its screencapture keeps the terminal's Screen Recording access.
+  sleep 1
+  osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $pid) to true" >/dev/null || true
+  wait "$pid" || true
   # With a sheet open, the sheet is the last window.
   cwebp -quiet -lossless -z 9 -metadata none "$(ls "$WORK/shots/$name"/window-*.png | sort | tail -1)" -o "$OUT/$name.webp"
   echo "$OUT/$name.webp"
@@ -44,4 +51,5 @@ shot() {
 shot overview
 shot editor --select "$DEMO/harbor-api/CLAUDE.md"
 shot compare --select "$DEMO/harbor-api/CLAUDE.md" --compare
+shot repeated --repeated-rules
 if [ -n "$AUDIT" ]; then shot audit --select "$DEMO/aurora/AGENTS.md"; fi

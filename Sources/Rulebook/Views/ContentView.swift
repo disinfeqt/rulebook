@@ -46,6 +46,7 @@ struct ContentView: View {
         .task {
             if model.scan == nil { model.rescan() }
             if LaunchOptions.showSettings { openSettings() }
+            if LaunchOptions.showRepeatedRules { model.selection = .repeatedRules }
         }
     }
 }

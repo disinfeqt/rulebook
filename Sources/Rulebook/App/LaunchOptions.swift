@@ -9,6 +9,7 @@ import Foundation
 ///     --model <name>    with --audit: use this model instead of the agent's default
 ///     --command <path>  with --audit: run this executable as the agent, for testing how failures are reported
 ///     --settings        open the Settings window at launch
+///     --repeated-rules  open on Repeated Rules
 enum LaunchOptions {
     static func value(_ flag: String) -> String? {
         let args = CommandLine.arguments
@@ -21,4 +22,6 @@ enum LaunchOptions {
     static var storeDir: String? { value("--store") }
     /// Opens Settings at launch, for screenshots.
     static var showSettings: Bool { CommandLine.arguments.contains("--settings") }
+    /// Opens on Repeated Rules instead of the overview, for the website's screenshot.
+    static var showRepeatedRules: Bool { CommandLine.arguments.contains("--repeated-rules") }
 }

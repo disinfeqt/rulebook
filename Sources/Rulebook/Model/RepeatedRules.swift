@@ -92,13 +92,64 @@ enum RepeatedRules {
             let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             if line.hasPrefix("```") || line.hasPrefix("~~~") { inFence.toggle(); continue }
             if inFence || line.isEmpty || blocks.contains(where: { NSLocationInRange(start, $0) }) { continue }
-            if let first = line.first, "#@<|".contains(first) { continue }
-            if line.allSatisfy({ "-*_= ".contains($0) }) { continue }
-            let stripped = line.replacingOccurrences(of: #"^(?:>\s*)?(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?"#,
-                                                     with: "", options: .regularExpression)
-            if !stripped.isEmpty { result.append((i + 1, stripped)) }
+            if let rule = rule(inLine: line) { result.append((i + 1, rule)) }
         }
         return result
+    }
+
+    /// What a line says without its list marker, or nil for a heading, an import, markup or a divider.
+    static func rule(inLine raw: String) -> String? {
+        let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = line.first, !"#@<|".contains(first), !line.allSatisfy({ "-*_= ".contains($0) }) else { return nil }
+        let stripped = line.replacingOccurrences(of: #"^(?:>\s*)?(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?"#,
+                                                 with: "", options: .regularExpression)
+        return stripped.isEmpty ? nil : stripped
+    }
+
+    // MARK: Moving a rule to the global files
+
+    /// Whether a copy says nothing the rule doesn't, so it can go once the rule is global: the same wording, or
+    /// as many sentences with mostly the same words and at most two of its own.
+    static func isCovered(_ copy: String, by rule: String) -> Bool {
+        let a = normalized(copy), b = normalized(rule)
+        if a == b { return true }
+        guard sentences(copy) <= sentences(rule) else { return false }
+        let words = significantWords(a), ruleWords = significantWords(b)
+        let union = words.union(ruleWords).count
+        guard union > 0 else { return false }
+        return Double(words.intersection(ruleWords).count) / Double(union) >= similarity
+            && words.subtracting(ruleWords).count <= 2
+    }
+
+    /// How many sentences `text` has. A Latin stop ends one when a space follows; a Chinese one, when anything does.
+    static func sentences(_ text: String) -> Int {
+        text.trimmingCharacters(in: .whitespaces).matches(of: #/[.!?]\s|[。！？](?=.)/#).count + 1
+    }
+
+    /// Whether any line of `text` states `wording` in the same words.
+    static func contains(_ wording: String, in text: String) -> Bool {
+        let key = normalized(wording)
+        return text.split(separator: "\n").contains { rule(inLine: String($0)).map(normalized) == key }
+    }
+
+    /// `text` with `rule` added as the last item of a list at its end, or as a new list after a blank line.
+    static func appending(_ rule: String, to text: String) -> String {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "- \(rule)\n" }
+        let body = text.hasSuffix("\n") ? text : text + "\n"
+        let last = body.split(separator: "\n").last.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        let inList = last.range(of: #"^(?:[-*+]|\d+[.)])\s"#, options: .regularExpression) != nil && !body.hasSuffix("\n\n")
+        return body + (inList ? "" : "\n") + "- \(rule)\n"
+    }
+
+    /// `text` without the line holding `copy`: the line it was found on if that still says it, or else the first
+    /// line that does. Nil when no line says it any more.
+    static func removing(_ copy: RepeatedRule.Occurrence, from text: String) -> String? {
+        var lines = text.components(separatedBy: "\n")
+        let says = { (i: Int) in rule(inLine: lines[i]) == copy.text }
+        guard let index = lines.indices.contains(copy.line - 1) && says(copy.line - 1)
+                ? copy.line - 1 : lines.indices.first(where: says) else { return nil }
+        lines.remove(at: index)
+        return lines.joined(separator: "\n")
     }
 
     /// The wording with case, emphasis, quotes and closing punctuation set aside.

@@ -17,7 +17,8 @@ enum RepeatedRuleRow: Identifiable {
 struct RepeatedRulesView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: Set<String> = []
-    @State private var expanded: Set<String> = []
+    /// Rules start open, showing where each is written. These are the ones closed since.
+    @State private var collapsed: Set<String> = []
 
     var body: some View {
         Group {
@@ -40,6 +41,23 @@ struct RepeatedRulesView: View {
         }
         .navigationTitle("Repeated Rules")
         .navigationSubtitle(subtitle)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { if let rule = selectedRule { model.confirmMoveToGlobal(rule) } } label: {
+                    ToolbarTitle("Move to Global Files…")
+                }
+                .disabled(selectedRule == nil)
+                .help("Add the selected rule to the files Claude Code and Codex read in every project, and take it out of the projects")
+            }
+        }
+    }
+
+    /// The rule that's selected, or the rule of the selected copy.
+    private var selectedRule: RepeatedRule? {
+        guard let id = selection.first else { return nil }
+        return model.scan?.repeatedRules.first { rule in
+            "rule:" + rule.id == id || rule.occurrences.contains { $0.id == id }
+        }
     }
 
     private var subtitle: String {
@@ -111,6 +129,7 @@ struct RepeatedRulesView: View {
         .contextMenu(forSelectionType: String.self) { ids in
             switch ids.first.flatMap({ byID[$0] }) {
             case .rule(let rule):
+                Button("Move to Global Files…") { model.confirmMoveToGlobal(rule) }
                 Button("Copy Rule") { copy(rule.text) }
             case .occurrence(let occurrence):
                 Button("Open") { model.open(occurrence.docID, line: occurrence.line) }
@@ -132,8 +151,8 @@ struct RepeatedRulesView: View {
     }
 
     private func binding(_ id: String) -> Binding<Bool> {
-        Binding(get: { expanded.contains(id) },
-                set: { if $0 { expanded.insert(id) } else { expanded.remove(id) } })
+        Binding(get: { !collapsed.contains(id) },
+                set: { if $0 { collapsed.remove(id) } else { collapsed.insert(id) } })
     }
 
     private func copy(_ text: String) {

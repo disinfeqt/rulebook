@@ -269,3 +269,12 @@
 "No rule appears in more than one project." = "没有规则出现在多个项目里。";
 "Rule" = "规则";
 "Copy Rule" = "拷贝规则";
+"Rulebook will add it to %@, which Claude Code reads in every project, and to %@, which Codex reads." = "Rulebook 会把它加到 Claude Code 在每个项目里都会读取的 %@，以及 Codex 读取的 %@。";
+"It comes out of %d project as an unsaved change for you to review." = "它会从 %d 个项目中移除，作为未存储的更改供你检查。";
+"It comes out of %d projects as unsaved changes for you to review." = "它会从 %d 个项目中移除，作为未存储的更改供你检查。";
+"The copy in %@ says more, so it stays." = "%@ 里的那一份写了更多内容，所以会保留。";
+"The copies in %@ say more, so they stay." = "%@ 里的几份写了更多内容，所以会保留。";
+"Agents without a global file, like Cursor, stop getting it from the projects it leaves." = "没有全局文件的智能体（比如 Cursor）将无法再从这些项目中读到这条规则。";
+"Move this rule to your global files?" = "要把这条规则移到全局文件吗？";
+"Move to Global Files…" = "移到全局文件…";
+"Add the selected rule to the files Claude Code and Codex read in every project, and take it out of the projects" = "把选中的规则加到 Claude Code 和 Codex 在每个项目里都会读取的文件中，并从各个项目中移除";

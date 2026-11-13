@@ -392,6 +392,64 @@ final class AppModel {
         }
     }
 
+    // MARK: Global rules
+
+    /// The files Claude Code and Codex read in every project.
+    static var globalRuleFiles: [URL] {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        return [home.appendingPathComponent(".claude/CLAUDE.md"), home.appendingPathComponent(".codex/AGENTS.md")]
+    }
+
+    func confirmMoveToGlobal(_ rule: RepeatedRule) {
+        let copies = rule.occurrences.filter { $0.projectID != "global" }
+        let kept = copies.filter { !RepeatedRules.isCovered($0.text, by: rule.text) }
+        let leaving = Set(copies.filter { RepeatedRules.isCovered($0.text, by: rule.text) }.map(\.projectID)).count
+        var message = [
+            "“\(rule.text)”",
+            L("Rulebook will add it to %@, which Claude Code reads in every project, and to %@, which Codex reads.",
+              "~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"),
+        ]
+        if leaving > 0 {
+            message.append(LN(leaving, "It comes out of %d project as an unsaved change for you to review.",
+                              "It comes out of %d projects as unsaved changes for you to review."))
+        }
+        if !kept.isEmpty {
+            let names = ListFormatter.localizedString(byJoining: Array(Set(kept.map(\.project))).sorted())
+            message.append(kept.count == 1 ? L("The copy in %@ says more, so it stays.", names)
+                                           : L("The copies in %@ say more, so they stay.", names))
+        }
+        message.append(L("Agents without a global file, like Cursor, stop getting it from the projects it leaves."))
+        confirm(L("Move this rule to your global files?"), message.joined(separator: "\n\n"), action: L("Move")) { [weak self] in
+            self?.moveToGlobal(rule)
+        }
+    }
+
+    /// Adds the rule to the global files that don't have it yet, and takes out the copies it covers.
+    /// A global file Rulebook already shows gets an unsaved change like the projects do; a new one is written.
+    func moveToGlobal(_ rule: RepeatedRule) {
+        var wrote = false
+        for url in Self.globalRuleFiles {
+            if let doc = doc(url.standardizedFileURL.path) {
+                let text = self.text(for: doc)
+                if !RepeatedRules.contains(rule.text, in: text) {
+                    setText(RepeatedRules.appending(rule.text, to: text), for: doc.id)
+                }
+            } else {
+                let target = url.resolvingSymlinksInPath()
+                let text = Scanner.readText(target) ?? ""
+                guard !RepeatedRules.contains(rule.text, in: text) else { continue }
+                try? FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+                guard write(RepeatedRules.appending(rule.text, to: text), to: target) else { return }
+                wrote = true
+            }
+        }
+        for copy in rule.occurrences where copy.projectID != "global" && RepeatedRules.isCovered(copy.text, by: rule.text) {
+            guard let doc = doc(copy.docID), let text = RepeatedRules.removing(copy, from: self.text(for: doc)) else { continue }
+            setText(text, for: doc.id)
+        }
+        if wrote { rescanNow() }
+    }
+
     // MARK: Fixes
 
     func perform(_ fix: Fix, on doc: Doc) {

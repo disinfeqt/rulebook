@@ -53,7 +53,7 @@ Rulebook uses the first one it finds. Settings lets you pick the agent, a model 
 
 Download [Rulebook.zip](https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip), open it, and drag Rulebook to your Applications folder. It needs macOS 14 or later.
 
-Releases aren't notarized by Apple yet, so macOS will refuse to open the app the first time. To allow it, open System Settings, go to Privacy & Security, and click Open Anyway next to the message about Rulebook.
+Releases are signed and notarized by Apple, and run on Apple silicon and Intel Macs.
 
 ## Build
 
@@ -74,7 +74,7 @@ The app's own binary, `Rulebook.app/Contents/MacOS/Rulebook`, takes a few argume
 - `Rulebook --root <folder> --audit <file>` runs one audit headless and stores the result where the app reads it. Add `--agent claude|codex` or `--model <name>` to choose.
 - `--root <folder>`, `--no-global` and `--store <folder>` point the app at another folder and audit store without changing your settings.
 
-`./scripts/release.sh` builds the app for both Mac architectures and publishes it as a GitHub release. The website in `docs/` is deployed from this repository, and its download button always points at the latest release.
+`./scripts/release.sh` builds the app for both Mac architectures, signs it with a Developer ID, has Apple notarize it, and publishes it as a GitHub release. The website in `docs/` is deployed from this repository, and its download button always points at the latest release.
 
 Two scripts regenerate checked-in files:
 

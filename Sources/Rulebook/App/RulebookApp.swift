@@ -128,7 +128,7 @@ struct RulebookCommands: Commands {
             Toggle("Only Files That Need Attention", isOn: Binding(get: { model.attentionOnly }, set: { model.attentionOnly = $0 }))
         }
         CommandMenu("Go") {
-            Button("Overview") { model.selection = .overview }
+            Button("Rules") { model.selection = .overview }
                 .keyboardShortcut("0")
             Button("Repeated Rules") { model.selection = .repeatedRules }
             Button("Skills") { model.selection = .skills }

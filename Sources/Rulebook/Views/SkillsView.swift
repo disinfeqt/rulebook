@@ -35,14 +35,19 @@ struct SkillRow: Identifiable {
     var attention: Int { children.filter { $0.urgency > 0 }.count }
 }
 
-/// Every skill in the projects and in the home folder: who loads it and what's wrong with it.
+/// The skills in the projects and in the home folder, or those of one place: who loads each and what's wrong
+/// with it.
 struct SkillsView: View {
+    /// The place whose skills to list: a project's path or "global". Nil for all of them.
+    var scope: String? = nil
     @Environment(AppModel.self) private var model
+    /// The Project column is left out for one place, which the sidebar already names.
+    @State private var columns = TableColumnCustomization<SkillRow>()
     @State private var selection: Set<String> = []
     @State private var sortOrder = [KeyPathComparator(\SkillRow.urgency, order: .reverse),
                                     KeyPathComparator(\SkillRow.name)]
-    /// Sets of skills start closed, so a project with forty from one source is one row. These are the ones
-    /// opened since, or with `--open-skill-sets`, the ones closed since.
+    /// In the list of every skill, sets start closed, so a project with forty from one source is one row. In one
+    /// place's list they start open: its skills are what you came for. These are the ones toggled since.
     @State private var toggled: Set<String> = []
 
     /// A project's skills from one source are shown as one row from this many up.
@@ -75,15 +80,22 @@ struct SkillsView: View {
         }
         .navigationTitle("Skills")
         .navigationSubtitle(subtitle)
+        .onAppear { columns[visibility: "project"] = scope == nil ? .automatic : .hidden }
     }
 
+    private func entries(_ scan: ScanResult) -> [SkillEntry] {
+        scope == nil ? scan.skills : scan.skills.filter { $0.projectID == scope }
+    }
+
+    /// Where the skills are: the scanned folder, or the one place.
     private var subtitle: String {
-        let path = model.rootPath?.tildePath ?? ""
-        guard let scan = model.scan else { return path }
-        let attention = scan.skills.filter { entry in
+        guard let scan = model.scan else { return model.rootPath?.tildePath ?? "" }
+        let entries = entries(scan)
+        let place = scope == nil ? scan.root.path.tildePath : (entries.first?.projectName ?? "")
+        let attention = entries.filter { entry in
             entry.docID.flatMap { scan.docs[$0] }?.needsAttention ?? ((entry.issue?.severity ?? .info) >= .warning)
         }.count
-        return attention == 0 ? path : path + " — " + LN(attention, "%d skill needs attention", "%d skills need attention")
+        return attention == 0 ? place : place + " — " + LN(attention, "%d skill needs attention", "%d skills need attention")
     }
 
     /// Whether the list is narrowed by the sidebar's search field or the attention filter.
@@ -93,24 +105,16 @@ struct SkillsView: View {
 
     /// One row per skill. The sidebar's search field and the attention filter narrow this list too.
     private func rows(_ scan: ScanResult) -> [SkillRow] {
-        let query = model.searchText.trimmingCharacters(in: .whitespaces).lowercased()
-        return scan.skills.compactMap { entry in
+        entries(scan).filter(model.isVisible).map { entry in
             let doc = entry.docID.flatMap(model.doc)
-            let text = doc.map(model.text(for:)) ?? ""
-            let description = SkillScan.frontmatter(in: text)?.description ?? ""
-            let source = doc?.skill?.source ?? (doc?.skill?.isSynced == true ? "claude.ai" : "")
             let issue = doc == nil ? entry.issue : doc?.topIssue
-            if model.attentionOnly, (issue?.severity ?? .info) < .warning, !(doc.map { model.isDirty($0.id) } ?? false) { return nil }
-            if !query.isEmpty, ![entry.name, entry.projectName, description, source].contains(where: { $0.lowercased().contains(query) }) {
-                return nil
-            }
             return SkillRow(
                 id: entry.id, entry: entry, doc: doc, name: entry.name,
                 project: doc.map { $0.relativeDir.isEmpty ? $0.projectName : $0.projectName + "/" + $0.relativeDir } ?? entry.projectName,
-                source: source, description: description, issue: issue,
+                source: entry.source, description: entry.description, issue: issue,
                 readBy: doc?.readBy ?? "", readByRank: doc?.readByRank ?? -1,
-                listed: doc == nil ? 0 : SkillScan.listingTokens(name: entry.name, description: description),
-                tokens: MarkdownScan.stats(text).tokens,
+                listed: doc == nil ? 0 : SkillScan.listingTokens(name: entry.name, description: entry.description),
+                tokens: MarkdownScan.stats(doc.map(model.text(for:)) ?? "").tokens,
                 urgency: issue.map { $0.severity >= .warning ? $0.severity.rawValue + 1 : 0 } ?? 0,
                 modified: doc?.primary.modified ?? .distantPast)
         }
@@ -149,7 +153,7 @@ struct SkillsView: View {
             byID[row.id] = row
             for child in row.children { byID[child.id] = child }
         }
-        return Table(of: SkillRow.self, selection: $selection, sortOrder: $sortOrder) {
+        return Table(of: SkillRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("Skill", value: \.name) { row in
                 HStack(spacing: 6) {
                     if row.isGroup {
@@ -165,12 +169,15 @@ struct SkillsView: View {
                 .help(row.description)
             }
             .width(min: 120, ideal: 220, max: 360)
+            .customizationID("skill")
+            .disabledCustomizationBehavior(.visibility)
             TableColumn("Project", value: \.project) { row in
                 if !row.isChild {
                     Text(row.project).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 }
             }
             .width(min: 90, ideal: 150, max: 260)
+            .customizationID("project")
             TableColumn("Installed From", value: \.source) { row in
                 if !row.isChild, !row.source.isEmpty {
                     Text(row.source).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
@@ -179,12 +186,14 @@ struct SkillsView: View {
                 }
             }
             .width(min: 90, ideal: 190, max: 300)
+            .customizationID("source")
             TableColumn("Read By", sortUsing: KeyPathComparator(\SkillRow.readByRank)) { row in
                 Text(row.readBy)
                     .foregroundStyle(.secondary)
                     .help(row.doc.map { [$0.readers.claude, $0.readers.others].map(\.note).filter { !$0.isEmpty }.joined(separator: "\n") } ?? "")
             }
             .width(min: 90, ideal: 120, max: 180)
+            .customizationID("readBy")
             TableColumn("Issue", sortUsing: KeyPathComparator(\SkillRow.urgency, order: .reverse)) { row in
                 if let issue = row.issue {
                     Label {
@@ -202,6 +211,7 @@ struct SkillsView: View {
                 }
             }
             .width(min: 160, ideal: 320)
+            .customizationID("issue")
             TableColumn("Tokens", sortUsing: KeyPathComparator(\SkillRow.listed, order: .reverse)) { row in
                 if row.doc != nil || row.isGroup {
                     Text(verbatim: row.listed.formatted())
@@ -212,12 +222,14 @@ struct SkillsView: View {
                 }
             }
             .width(min: 56, ideal: 64, max: 90)
+            .customizationID("tokens")
             TableColumn("Modified", sortUsing: KeyPathComparator(\SkillRow.modified, order: .reverse)) { row in
                 if row.modified != .distantPast {
                     Text(row.modified.listStyle).foregroundStyle(.secondary)
                 }
             }
             .width(min: 96, ideal: 150, max: 200)
+            .customizationID("modified")
         } rows: {
             ForEach(rows.sorted(using: sortOrder)) { row in
                 if row.isGroup {
@@ -260,7 +272,7 @@ struct SkillsView: View {
     }
 
     private func binding(_ id: String) -> Binding<Bool> {
-        let startsOpen = LaunchOptions.openSkillSets
+        let startsOpen = scope != nil || LaunchOptions.openSkillSets
         return Binding(get: { toggled.contains(id) != startsOpen },
                        set: { if $0 != startsOpen { toggled.insert(id) } else { toggled.remove(id) } })
     }

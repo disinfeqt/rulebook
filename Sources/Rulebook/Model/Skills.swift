@@ -55,6 +55,11 @@ struct SkillEntry: Identifiable, Hashable, Sendable {
     let docID: String?
     /// What's wrong with an entry that has no SKILL.md to open.
     var issue: Issue? = nil
+    /// The saved SKILL.md's description.
+    var description = ""
+    /// Where it was installed from: the repository `npx skills` got it from, or claude.ai for a skill synced
+    /// from the account. Empty for a skill of the user's own.
+    var source = ""
 }
 
 /// The YAML block at the top of a SKILL.md, read as far as Rulebook needs it: plain `key: value` pairs.
@@ -498,7 +503,9 @@ enum SkillScan {
                             staticIssues: issues, skill: info))
         }
         return (docs, docs.map {
-            SkillEntry(id: $0.id, name: name, projectID: projectID, projectName: projectName, dir: $0.skill!.dir, docID: $0.id)
+            SkillEntry(id: $0.id, name: name, projectID: projectID, projectName: projectName, dir: $0.skill!.dir, docID: $0.id,
+                       description: frontmatter(in: $0.primary.content)?.description ?? "",
+                       source: source ?? ($0.skill!.isSynced ? "claude.ai" : ""))
         })
     }
 

@@ -21,17 +21,9 @@ struct ContentView: View {
             } else if model.selection == .repeatedRules {
                 RepeatedRulesView()
             } else if model.selection == .skills {
-                // A skill opens on top of the list, so Back returns to the list where it was left.
-                NavigationStack(path: $model.skillPath) {
-                    SkillsView()
-                        .navigationDestination(for: String.self) { id in
-                            if let doc = model.doc(id) {
-                                DocDetailView(doc: doc).id(id)
-                            } else {
-                                ContentUnavailableView("File Not Found", systemImage: "doc.questionmark")
-                            }
-                        }
-                }
+                skills(in: nil)
+            } else if case .skillsIn(let place)? = model.selection {
+                skills(in: place)
             } else {
                 OverviewView()
             }
@@ -60,7 +52,26 @@ struct ContentView: View {
             if LaunchOptions.showSettings { openSettings() }
             if LaunchOptions.showRepeatedRules { model.selection = .repeatedRules }
             if LaunchOptions.showSkills { model.selection = .skills }
+            if let place = LaunchOptions.skillsPlace { model.selection = .skillsIn(place) }
         }
+    }
+}
+
+extension ContentView {
+    /// Every skill, or one place's. A skill opens on top of the list, so Back returns to the list where it was left.
+    private func skills(in place: String?) -> some View {
+        @Bindable var model = model
+        return NavigationStack(path: $model.skillPath) {
+            SkillsView(scope: place)
+                .navigationDestination(for: String.self) { id in
+                    if let doc = model.doc(id) {
+                        DocDetailView(doc: doc).id(id)
+                    } else {
+                        ContentUnavailableView("File Not Found", systemImage: "doc.questionmark")
+                    }
+                }
+        }
+        .id(place ?? "")
     }
 }
 
@@ -88,30 +99,31 @@ struct SidebarView: View {
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selection) {
+            // What's in every place, by kind.
             Section {
-                Label("Overview", systemImage: "square.grid.2x2")
+                Label("Rules", systemImage: "list.bullet")
                     .tag(SidebarItem.overview)
-                Label("Repeated Rules", systemImage: "square.on.square")
-                    .tag(SidebarItem.repeatedRules)
-                    .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
                 Label("Skills", systemImage: "puzzlepiece.extension")
                     .tag(SidebarItem.skills)
                     .help("The skills in your projects and your home folder, and which agents load each one.")
+                Label("Repeated Rules", systemImage: "square.on.square")
+                    .tag(SidebarItem.repeatedRules)
+                    .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
             }
-            // A project with one file is one row, named for the project. One with several is its name with its files under it.
-            let projects = model.visibleProjects
-            let grouped = Set((model.scan?.projects ?? []).filter { $0.docIDs.count > 1 }.map(\.id))
-            ForEach(projects.filter(\.isGlobal)) { project in
-                Section(project.name) { rows(project, naming: .file) }
+            // Then each place with what it holds: its instruction files, and a row for its skills. A project with
+            // one file and no skills is one row, named for the project.
+            let places = model.sidebarPlaces
+            ForEach(places.filter(\.isGlobal)) { place in
+                Section(place.name) { contents(place, naming: .file) }
             }
-            if projects.contains(where: { !$0.isGlobal }) {
+            if places.contains(where: { !$0.isGlobal }) {
                 Section("Projects") {
-                    ForEach(projects.filter { !$0.isGlobal }) { project in
-                        if grouped.contains(project.id) {
-                            Label(project.name, systemImage: "folder").selectionDisabled()
-                            rows(project, naming: .file).padding(.leading, 18)
+                    ForEach(places.filter { !$0.isGlobal }) { place in
+                        if place.isFolder {
+                            Label(place.name, systemImage: "folder").selectionDisabled()
+                            contents(place, naming: .file).padding(.leading, 18)
                         } else {
-                            rows(project, naming: .project)
+                            contents(place, naming: .project)
                         }
                     }
                 }
@@ -120,7 +132,7 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .searchable(text: $model.searchText, placement: .sidebar)
         .overlay {
-            if model.scan != nil, model.visibleProjects.isEmpty {
+            if model.scan != nil, model.sidebarPlaces.isEmpty {
                 if !model.searchText.isEmpty {
                     ContentUnavailableView.search(text: model.searchText)
                 } else if model.attentionOnly {
@@ -130,12 +142,26 @@ struct SidebarView: View {
         }
     }
 
-    private func rows(_ project: Project, naming: DocRow.Naming) -> some View {
-        ForEach(project.docIDs, id: \.self) { id in
+    /// A place's instruction files, then its skills as one row: there can be dozens, so they open as a list.
+    @ViewBuilder private func contents(_ place: SidebarPlace, naming: DocRow.Naming) -> some View {
+        ForEach(place.project?.docIDs ?? [], id: \.self) { id in
             if let doc = model.doc(id) {
                 DocRow(doc: doc, naming: naming).tag(SidebarItem.doc(id))
                     .contextMenu { DocMenu(doc: doc) }
             }
+        }
+        if let count = place.skills {
+            Label {
+                Text("Skills")
+            } icon: {
+                if place.skillsNeedAttention {
+                    Image(systemName: Severity.warning.icon).foregroundStyle(Severity.warning.color)
+                } else {
+                    Image(systemName: "puzzlepiece.extension")
+                }
+            }
+            .badge(count)
+            .tag(SidebarItem.skillsIn(place.id))
         }
     }
 }

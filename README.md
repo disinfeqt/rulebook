@@ -40,7 +40,7 @@ Move to Global Files adds a rule to `~/.claude/CLAUDE.md`, which Claude Code rea
 
 ## Skills
 
-Skills lists every skill in your projects and your home folder: who loads it, where it was installed from, and what its name and description cost in every session. Claude Code only looks in `.claude/skills`, and Codex and most other agents in `.agents/skills`, so a skill reaches every agent when one folder is linked from the other, which is how `npx skills` installs them.
+The sidebar shows each place, your home folder and every project, with its instruction files and a Skills row that opens that place's skills. Skills, at the top, lists every skill in your projects and your home folder: who loads it, where it was installed from, and what its name and description cost in every session. Claude Code only looks in `.claude/skills`, and Codex and most other agents in `.agents/skills`, so a skill reaches every agent when one folder is linked from the other, which is how `npx skills` installs them.
 
 | Status | Meaning |
 |---|---|

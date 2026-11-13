@@ -6,7 +6,25 @@ enum SidebarItem: Hashable {
     case overview
     case repeatedRules
     case skills
+    /// The skills of one place: a project, by its path, or "global".
+    case skillsIn(String)
     case doc(String)
+}
+
+/// A row or group of the sidebar: the home folder or a project, with what it holds after the search field and the
+/// attention filter are applied.
+struct SidebarPlace: Identifiable {
+    let id: String
+    let name: String
+    /// Its instruction files. Nil when it has none to show.
+    var project: Project?
+    /// How many skills its Skills row counts. Nil when it gets no such row.
+    var skills: Int?
+    var skillsNeedAttention = false
+    /// Shown as a name with rows under it, because it holds several files or has skills. Otherwise it's one row.
+    var isFolder = false
+
+    var isGlobal: Bool { id == "global" }
 }
 
 struct AlertInfo: Identifiable {
@@ -90,7 +108,10 @@ final class AppModel {
 
     var scan: ScanResult?
     var isScanning = false
-    var selection: SidebarItem? = .overview
+    var selection: SidebarItem? = .overview {
+        // A skill is open on top of one list of skills. Another list, or another page, starts without it.
+        didSet { if selection != oldValue { skillPath = [] } }
+    }
     /// The skill open on top of the Skills list, as the one element of its navigation path.
     var skillPath: [String] = []
     var searchText = ""
@@ -166,8 +187,14 @@ final class AppModel {
 
     var currentDoc: Doc? {
         if case .doc(let id) = selection { return doc(id) }
-        if selection == .skills, let id = skillPath.last { return doc(id) }
+        if showsSkills, let id = skillPath.last { return doc(id) }
         return nil
+    }
+
+    /// Whether the detail is a list of skills, of everything or of one place.
+    var showsSkills: Bool {
+        if case .skillsIn = selection { return true }
+        return selection == .skills
     }
 
     func text(for doc: Doc) -> String { drafts[doc.id] ?? doc.primary.content }
@@ -219,10 +246,64 @@ final class AppModel {
         selection = .doc(id)
     }
 
+    /// Opens a skill on top of the list of skills that's showing, or of the list of all of them.
     func openSkill(_ id: String) {
         focusEditorOnAppear = true
-        selection = .skills
+        if !showsSkills { selection = .skills }
         skillPath = [id]
+    }
+
+    /// Whether a skill passes the sidebar's search field and the attention filter.
+    func isVisible(_ entry: SkillEntry) -> Bool {
+        let doc = entry.docID.flatMap(doc)
+        if attentionOnly {
+            let severity = (doc == nil ? entry.issue : doc?.topIssue)?.severity ?? .info
+            if severity < .warning, !(doc.map { isDirty($0.id) } ?? false) { return false }
+        }
+        let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        return query.isEmpty || [entry.name, entry.projectName, entry.description, entry.source].contains { $0.lowercased().contains(query) }
+    }
+
+    /// The home folder and the projects, each with its instruction files and a count of its skills.
+    var sidebarPlaces: [SidebarPlace] {
+        guard let scan else { return [] }
+        let filtered = attentionOnly || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        struct Tally { var name = ""; var listed = false; var count = 0; var attention = false }
+        var tallies: [String: Tally] = [:]
+        for entry in scan.skills {
+            let doc = entry.docID.flatMap { scan.docs[$0] }
+            let urgent = ((doc == nil ? entry.issue : doc?.topIssue)?.severity ?? .info) >= .warning
+            // An empty folder alone isn't worth a row in the sidebar. It's in the list of all skills.
+            guard doc != nil || urgent else { continue }
+            var tally = tallies[entry.projectID] ?? Tally(name: entry.projectName)
+            tally.listed = true
+            if !filtered || isVisible(entry) {
+                if doc != nil { tally.count += 1 }
+                tally.attention = tally.attention || urgent
+            }
+            tallies[entry.projectID] = tally
+        }
+        func skills(_ id: String) -> (Int?, Bool) {
+            guard let tally = tallies[id], !filtered || tally.count > 0 || tally.attention else { return (nil, false) }
+            return (tally.count, tally.attention)
+        }
+        var places: [SidebarPlace] = []
+        var seen = Set<String>()
+        for project in visibleProjects {
+            let (count, attention) = skills(project.id)
+            let files = scan.projects.first { $0.id == project.id }?.docIDs.count ?? 0
+            places.append(SidebarPlace(id: project.id, name: project.name, project: project, skills: count,
+                                       skillsNeedAttention: attention, isFolder: files > 1 || tallies[project.id]?.listed == true))
+            seen.insert(project.id)
+        }
+        for (id, tally) in tallies where !seen.contains(id) {
+            let (count, attention) = skills(id)
+            guard count != nil else { continue }
+            places.append(SidebarPlace(id: id, name: tally.name, skills: count, skillsNeedAttention: attention, isFolder: true))
+        }
+        return places.sorted {
+            $0.isGlobal != $1.isGlobal ? $0.isGlobal : $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
     }
 
     /// Opens a file with its editor scrolled to `line` and the line selected.
@@ -287,6 +368,9 @@ final class AppModel {
                 d.allFiles.contains { $0.id == id } || d.linkedFrom.contains { $0.file.id == id }
             } ?? previous?.docs[id].flatMap { old in result.docs.values.first { $0.locationDir == old.locationDir } }
             selection = successor.map { .doc($0.id) } ?? .overview
+        }
+        if case .skillsIn(let place) = selection, !result.skills.contains(where: { $0.projectID == place }) {
+            selection = .skills
         }
         if let open = skillPath.last, result.docs[open] == nil {
             // The open skill's folder became a link to another one, or went to the Trash.

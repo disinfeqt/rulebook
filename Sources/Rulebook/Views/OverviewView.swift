@@ -53,7 +53,7 @@ struct OverviewView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Overview")
+        .navigationTitle("Rules")
         .navigationSubtitle(subtitle)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {

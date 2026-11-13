@@ -11,6 +11,7 @@ import Foundation
 ///     --settings        open the Settings window at launch
 ///     --repeated-rules  open on Repeated Rules
 ///     --skills          open on Skills
+///     --skills-in <folder>  open on the skills of one project, or of the home folder with `global`
 ///     --open-skill-sets show the skills a project got from one source opened out, not as one row
 enum LaunchOptions {
     static func value(_ flag: String) -> String? {
@@ -27,6 +28,12 @@ enum LaunchOptions {
     /// Opens on Repeated Rules instead of the overview, for the website's screenshot.
     static var showRepeatedRules: Bool { CommandLine.arguments.contains("--repeated-rules") }
     static var showSkills: Bool { CommandLine.arguments.contains("--skills") }
+    /// The place whose skills to open on: a project's path, or "global".
+    static var skillsPlace: String? {
+        guard let i = CommandLine.arguments.firstIndex(of: "--skills-in"), i + 1 < CommandLine.arguments.count else { return nil }
+        let value = CommandLine.arguments[i + 1]
+        return value == "global" ? value : URL(fileURLWithPath: (value as NSString).expandingTildeInPath).standardizedFileURL.path
+    }
     /// Opens every set of skills on the Skills page, for a picture that shows what's inside one.
     static var openSkillSets: Bool { CommandLine.arguments.contains("--open-skill-sets") }
 }

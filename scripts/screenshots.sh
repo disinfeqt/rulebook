@@ -1,0 +1,43 @@
+#!/bin/bash
+# Regenerates docs/screenshots/ from the made-up projects in make-demo.sh, so no real project shows up.
+#
+#   ./scripts/screenshots.sh          # overview, editor, compare
+#   ./scripts/screenshots.sh --audit  # also runs one real audit for audit.png (needs claude or codex, uses ~1 min of usage)
+#
+# Add app arguments after a --, for example the Chinese interface:
+#   ./scripts/screenshots.sh -- -AppleLanguages '(zh-Hans)'
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+xcodebuild -project Rulebook.xcodeproj -scheme Rulebook -configuration Release -derivedDataPath build -quiet build
+APP=build/Build/Products/Release/Rulebook.app/Contents/MacOS/Rulebook
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# A stand-in home, so paths in the UI read ~/Projects/...
+DEMO="$WORK/home/Projects"
+STORE="$WORK/store"
+./scripts/make-demo.sh "$DEMO" >/dev/null
+mkdir -p "$STORE" docs/screenshots
+
+AUDIT=""
+if [ "${1:-}" = "--audit" ]; then AUDIT=1; shift; fi
+if [ "${1:-}" = "--" ]; then shift; fi
+EXTRA=("$@")
+
+if [ -n "$AUDIT" ]; then
+  "$APP" ${EXTRA[@]+"${EXTRA[@]}"} --root "$DEMO" --no-global --store "$STORE" --audit "$DEMO/aurora/AGENTS.md"
+fi
+
+shot() {
+  local name=$1; shift
+  HOME="$WORK/home" "$APP" ${EXTRA[@]+"${EXTRA[@]}"} --root "$DEMO" --no-global --store "$STORE" "$@" --snapshot "$WORK/shots/$name" >/dev/null 2>&1
+  # With a sheet open, the sheet is the last window.
+  cp "$(ls "$WORK/shots/$name"/window-*.png | sort | tail -1)" "docs/screenshots/$name.png"
+  echo "docs/screenshots/$name.png"
+}
+
+shot overview
+shot editor --select "$DEMO/harbor-api/CLAUDE.md"
+shot compare --select "$DEMO/harbor-api/CLAUDE.md" --compare
+if [ -n "$AUDIT" ]; then shot audit --select "$DEMO/aurora/AGENTS.md"; fi

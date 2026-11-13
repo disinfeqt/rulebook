@@ -36,6 +36,7 @@ extension PairStatus {
 extension Doc {
     /// Who reads this file, in a word or two.
     var readBy: String {
+        if let skill, !readers.claude.reads, skill.homes == [.codex] { return "Codex" }
         if role == .global { return primary.kind == .claude ? "Claude Code" : "Codex" }
         switch (readers.claude.reads, readers.others.reads) {
         case (true, true): return L("All agents")
@@ -100,6 +101,12 @@ extension Fix {
         case .removeBlocks: return L("Remove from This File")
         case .retitle(let name): return L("Retitle to %@", name)
         case .wrapInBackticks: return L("Wrap in Backticks")
+        case .linkSkill(let home): return L("Link into %@", home.folder)
+        case .moveSkillToAgents: return L("Move to %@", SkillHome.agents.folder)
+        case .linkSkillCopies: return L("Replace Copy with Link")
+        case .useSkillVersion: return L("Use This Version")
+        case .removeSkillLink: return L("Remove Link")
+        case .renameSkill(let name): return L("Rename to %@", name)
         }
     }
 }

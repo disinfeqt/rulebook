@@ -2,6 +2,8 @@ import Foundation
 
 enum FileKind: String, Hashable, Sendable {
     case claude, agents, claudeLocal
+    /// The SKILL.md of a skill folder.
+    case skill
 }
 
 /// One instruction file on disk.
@@ -83,6 +85,18 @@ enum Fix: Hashable, Sendable {
     case removeBlocks([String])
     case retitle(String)
     case wrapInBackticks(String)
+    /// Adds a link to this skill in the folder another agent looks in.
+    case linkSkill(into: SkillHome)
+    /// Moves the skill's folder to `.agents/skills` and leaves a link where it was, the layout `npx skills` writes.
+    case moveSkillToAgents
+    /// Replaces the identical copies of this skill with links to it.
+    case linkSkillCopies
+    /// Replaces the other version of this skill with a link to this one.
+    case useSkillVersion
+    /// Removes a link that points nowhere.
+    case removeSkillLink(URL)
+    /// Sets the `name` in the skill's frontmatter.
+    case renameSkill(String)
 }
 
 struct Issue: Identifiable, Hashable, Sendable {
@@ -115,16 +129,19 @@ struct Doc: Identifiable, Hashable, Sendable {
     let role: DocRole
     let status: PairStatus
     let siblingID: String?
-    let readers: Readers
+    var readers: Readers
     var staticIssues: [Issue]
     /// Static issues plus content issues for the saved text, most severe first.
     var savedIssues: [Issue] = []
+    /// Set when this is the SKILL.md of a skill, not an instruction file.
+    var skill: SkillInfo? = nil
 
     var allFiles: [InstructionFile] { [primary] + mirrors }
     var savedLevel: Severity? { savedIssues.map(\.severity).max() }
     var needsAttention: Bool { (savedLevel ?? .info) >= .warning }
 
     var title: String {
+        if let skill { return skill.name }
         if role == .global { return (primary.url.path as NSString).abbreviatingWithTildeInPath }
         return relativeDir.isEmpty ? primary.displayName : "\(relativeDir)/\(primary.displayName)"
     }
@@ -162,5 +179,7 @@ struct ScanResult: Sendable {
     let blockGroups: [ManagedBlockGroup]
     /// Rules found in more than one project, from the saved files.
     let repeatedRules: [RepeatedRule]
+    /// Every skill in the projects and the home folder. Their SKILL.md files are in `docs`, but not in `projects`.
+    var skills: [SkillEntry] = []
     let duration: TimeInterval
 }

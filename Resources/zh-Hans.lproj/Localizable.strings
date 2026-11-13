@@ -278,3 +278,110 @@
 "Move this rule to your global files?" = "要把这条规则移到全局文件吗？";
 "Move to Global Files…" = "移到全局文件…";
 "Add the selected rule to the files Claude Code and Codex read in every project, and take it out of the projects" = "把选中的规则加到 Claude Code 和 Codex 在每个项目里都会读取的文件中，并从各个项目中移除";
+
+/* Skills */
+"Skills" = "技能";
+"Skill" = "技能";
+"No Skills" = "没有技能";
+"The skills in your projects and your home folder, and which agents load each one." = "各个项目和个人文件夹里的技能，以及每个技能会被哪些智能体加载。";
+"There's no .claude/skills or .agents/skills folder in %@ or in your home folder." = "%@ 和你的个人文件夹里都没有 .claude/skills 或 .agents/skills 文件夹。";
+"%d skill" = "%d 个技能";
+"%d skills" = "%d 个技能";
+"%d skill needs attention" = "%d 个技能需要处理";
+"%d skills need attention" = "%d 个技能需要处理";
+"Global skills take ≈%@ tokens of every Claude Code session" = "全局技能在每次 Claude Code 会话中约占 %@ 个 token";
+"≈%@ of every Codex session" = "在每次 Codex 会话中约占 %@ 个";
+"The name and description, listed in every session. All of SKILL.md, loaded when the skill is used, is ≈%@ tokens." = "名称和描述会列在每次会话里。整份 SKILL.md 在技能被使用时才加载，约 %@ 个 token。";
+"A rough estimate of the context this skill takes up once an agent uses it" = "粗略估算智能体使用这个技能后它占用的上下文";
+"Files" = "文件";
+"and %d more" = "另有 %d 个";
+"Compare Versions" = "比较两个版本";
+"Remove Link…" = "移除链接…";
+"Move to Trash…" = "移到废纸篓…";
+"Move to Trash" = "移到废纸篓";
+
+/* Who loads a skill */
+"Synced from your claude.ai account" = "从你的 claude.ai 账户同步";
+"Only Codex, from %@" = "只有 Codex，从 %@ 读取";
+"Gets the other version, in %@" = "读到的是 %@ 里的另一个版本";
+"It only looks in %@" = "它只在 %@ 里查找";
+"They look in %@" = "它们在 %@ 里查找";
+"Uses your personal skill instead, in %@" = "改用你在 %@ 的个人技能";
+
+/* Skill issues and their fixes */
+"Agents get different versions of this skill" = "不同智能体读到的是这个技能的不同版本";
+"%1$@ and %2$@ are separate folders, and their SKILL.md files differ. Lines only in %1$@: %3$d. Lines only in %2$@: %4$d." = "%1$@ 和 %2$@ 是两个独立的文件夹，里面的 SKILL.md 不一样。仅 %1$@ 有的行：%3$d。仅 %2$@ 有的行：%4$d。";
+"Two copies of the same skill" = "同一个技能存在两个副本";
+"%1$@ and %2$@ are separate folders with the same content. Rulebook saves both, but other tools will let them drift. A link keeps one copy." = "%1$@ 和 %2$@ 是内容相同的两个独立文件夹。Rulebook 会同时存储两者，但用其他工具修改时它们会逐渐不一致。改成链接就只需保留一份。";
+"%1$@ and %2$@ have the same SKILL.md, but their other files differ." = "%1$@ 和 %2$@ 的 SKILL.md 相同，但其他文件不一样。";
+"Only Claude Code loads this skill" = "只有 Claude Code 会加载这个技能";
+"Codex and other agents look in `%@`. A link there lets them use this folder too." = "Codex 及其他智能体在 `%@` 里查找技能。在那里加一个链接，它们就能用同一个文件夹。";
+"Claude Code doesn't load this skill" = "Claude Code 不会加载这个技能";
+"Claude Code only looks in `%@`. A link there lets it use this folder too." = "Claude Code 只在 `%@` 里查找技能。在那里加一个链接，它就能用同一个文件夹。";
+"Claude Code uses your personal skill instead" = "Claude Code 会改用你的个人技能";
+"When a project skill and a personal one share a name, Claude Code runs the personal one. `%@` differs from this one." = "项目技能和个人技能同名时，Claude Code 运行的是个人技能。`%@` 和这一份内容不同。";
+"Differs from this skill in other projects" = "和其他项目里的这个技能不一样";
+"%d other place has a different version of this skill, so this copy may be out of date." = "另有 %d 处的这个技能是不同版本，这一份可能已经过时。";
+"%d other places have a different version of this skill, so this copy may be out of date." = "另有 %d 处的这个技能是不同版本，这一份可能已经过时。";
+"Empty folder" = "空文件夹";
+"`%@` has no SKILL.md, so it isn't a skill." = "`%@` 里没有 SKILL.md，所以它不是技能。";
+"Link points nowhere" = "链接指向的位置不存在";
+"%@ points nowhere" = "%@ 指向的位置不存在";
+"`%1$@` links to `%2$@`, which doesn't exist, so agents that look there find nothing." = "`%1$@` 链接到 `%2$@`，但后者不存在，在那里查找的智能体什么也找不到。";
+"Agents list a skill by its description and load its instructions from here. This one has neither." = "智能体靠描述列出技能，并从这个文件加载指令。这个文件两者都没有。";
+"No frontmatter" = "没有 frontmatter";
+"Frontmatter isn't closed" = "frontmatter 没有结束";
+"SKILL.md starts with a block between two `---` lines that holds the skill's `name` and `description`. Without it agents can't tell when to use the skill." = "SKILL.md 开头是两行 `---` 之间的一个区块，写着技能的 `name` 和 `description`。没有它，智能体无法判断什么时候使用这个技能。";
+"No description" = "没有描述";
+"Agents decide when to use a skill from its `description`. Say what the skill does and when to use it." = "智能体根据 `description` 决定什么时候使用技能。请写明这个技能做什么、什么时候用。";
+"Long description (%d characters)" = "描述过长（%d 个字符）";
+"The Agent Skills format allows %1$d characters, and Claude Code cuts a description off at %2$d. The description is listed in every session, so put the main use first." = "Agent Skills 格式允许 %1$d 个字符，Claude Code 会在 %2$d 个字符处截断描述。描述会列在每次会话里，所以请把主要用途写在最前面。";
+"Named “%1$@” in a folder called “%2$@”" = "名称是“%1$@”，文件夹却叫“%2$@”";
+"The Agent Skills format expects the `name` to match the folder. Agents that follow it may list this skill under either name, or skip it." = "Agent Skills 格式要求 `name` 和文件夹名一致。遵循这一格式的智能体可能用其中任意一个名称列出这个技能，也可能跳过它。";
+"Unusual name" = "名称不合惯例";
+"The Agent Skills format allows lowercase letters, numbers and single hyphens in a name, up to %d characters." = "Agent Skills 格式的名称只能包含小写字母、数字和单个连字符，最长 %d 个字符。";
+"Long skill (%d lines)" = "技能过长（%d 行）";
+"An agent loads all of SKILL.md when it uses the skill. Keep it under %d lines and move reference material into separate files, which are read only when needed." = "智能体使用技能时会加载整份 SKILL.md。请控制在 %d 行以内，把参考资料移到单独的文件里，这些文件只在需要时才会读取。";
+"File not found: %@" = "找不到文件：%@";
+"SKILL.md points at `%@`, which isn't in the skill's folder." = "SKILL.md 指向 `%@`，但技能文件夹里没有这个文件。";
+"Link into %@" = "链接到 %@";
+"Replace Copy with Link" = "用链接替换副本";
+"Use This Version" = "使用这个版本";
+"Remove Link" = "移除链接";
+"Rename to %@" = "重命名为 %@";
+
+/* Skill confirmations and errors */
+"Link this skill into %@?" = "要把这个技能链接到 %@ 吗？";
+"Rulebook will add %1$@ as a link to %2$@, so agents that look in either place use the same folder." = "Rulebook 将创建 %1$@，作为指向 %2$@ 的链接。这样无论智能体在哪一处查找，用的都是同一个文件夹。";
+"Link" = "链接";
+"Replace the copy with a link?" = "要用链接替换副本吗？";
+"%1$@ moves to the Trash, and a link to %2$@ takes its place. Agents keep finding the skill in both places." = "%1$@ 会移到废纸篓，原位置换成指向 %2$@ 的链接。智能体在两处仍然都能找到这个技能。";
+"The copies aren't the same" = "两个副本并不相同";
+"%@ has files that differ, so it was left in place." = "%@ 里有内容不同的文件，所以没有改动它。";
+"Use this version of %@ everywhere?" = "要让所有智能体都使用这个版本的 %@ 吗？";
+"%1$@ moves to the Trash, and a link to %2$@ takes its place, so every agent gets this version." = "%1$@ 会移到废纸篓，原位置换成指向 %2$@ 的链接，这样所有智能体读到的都是这个版本。";
+"Couldn't link %@" = "无法链接 %@";
+"Couldn't move %@ to the Trash" = "无法将 %@ 移到废纸篓";
+"Remove this link?" = "要移除这个链接吗？";
+"%@ points at a folder that doesn't exist. Removing it changes nothing for agents." = "%@ 指向的文件夹不存在。移除它不会影响任何智能体。";
+"Remove" = "移除";
+"Couldn't remove %@" = "无法移除 %@";
+"Move “%@” to the Trash?" = "要把“%@”移到废纸篓吗？";
+"%@ moves to the Trash, and agents stop finding the skill there." = "%@ 会移到废纸篓，智能体将无法再从那里找到这个技能。";
+"Claude Code downloads it again while it's in your claude.ai account." = "只要它还在你的 claude.ai 账户里，Claude Code 就会重新下载。";
+
+/* Skills installed with npx skills */
+"Installed from %@" = "安装自 %@";
+"`npx skills` manages this skill. Updating it there replaces the folder, so changes made here don't last." = "这个技能由 `npx skills` 管理。在那边更新会替换整个文件夹，这里做的修改不会保留。";
+"npx skills still lists it. To remove it there too, run “npx skills remove %@”." = "npx skills 仍会列出它。要在那边一并移除，请运行“npx skills remove %@”。";
+"Codex and other agents look in `%@`. With the folder there and a link to it here, every agent uses the same one." = "Codex 及其他智能体在 `%@` 里查找技能。把文件夹放到那里，并在这里留一个指向它的链接，所有智能体用的就是同一份。";
+"Move to %@" = "移到 %@";
+"Move this skill to %@?" = "要把这个技能移到 %@ 吗？";
+"The folder moves to %1$@, where Codex and other agents look. A link stays at %2$@, so Claude Code keeps finding it." = "文件夹会移到 %1$@，Codex 及其他智能体在那里查找技能。%2$@ 会留下一个链接，Claude Code 仍然能找到它。";
+"Couldn't move %@" = "无法移动 %@";
+"Installed From" = "安装来源";
+"%1$@ moves to the Trash. This version takes its place, and %2$@ becomes a link to it, so every agent gets this version." = "%1$@ 会移到废纸篓，由这个版本取代，%2$@ 则变成指向它的链接，这样所有智能体读到的都是这个版本。";
+
+/* Inspector */
+"%@. The file changed since this audit." = "%@。文件在这次审查之后有改动。";
+"Show in the file" = "在文件中显示";

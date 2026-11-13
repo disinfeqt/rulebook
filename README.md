@@ -38,6 +38,18 @@ Move to Global Files adds a rule to `~/.claude/CLAUDE.md`, which Claude Code rea
 
 ![Repeated Rules: a rule in eight projects, one of them worded differently](docs/screenshots/repeated.webp)
 
+## Skills
+
+Skills lists every skill in your projects and your home folder: who loads it, where it was installed from, and what its name and description cost in every session. Claude Code only looks in `.claude/skills`, and Codex and most other agents in `.agents/skills`, so a skill reaches every agent when one folder is linked from the other, which is how `npx skills` installs them.
+
+| Status | Meaning |
+|---|---|
+| All agents | One folder, linked into both places, or two folders with the same content. |
+| Claude Code or Other agents | The skill is only where one of them looks. One click links or moves it so both find it. |
+| Different versions | `.claude/skills` and `.agents/skills` hold folders that differ. Compare them, then keep one. |
+
+It also flags links that point nowhere, a SKILL.md without a description, links to files the skill doesn't have, a project skill hidden by a personal one of the same name, and copies that differ from the same skill in other projects. A skill opens in the editor like any other file. Folders a fix replaces go to the Trash.
+
 ## Audits
 
 Audit (⇧⌘A) checks a file against its project: instructions written for older models, references to files and commands that don't exist, and rules that contradict each other. You get a verdict, findings that jump to the text they're about, and suggested edits as a diff. Audit All (⌥⇧⌘A) works through every file that is new or has changed, and "Audit files again when they change" in Settings keeps results current.

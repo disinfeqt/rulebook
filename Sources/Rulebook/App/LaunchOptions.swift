@@ -10,6 +10,7 @@ import Foundation
 ///     --command <path>  with --audit: run this executable as the agent, for testing how failures are reported
 ///     --settings        open the Settings window at launch
 ///     --repeated-rules  open on Repeated Rules
+///     --skills          open on Skills
 enum LaunchOptions {
     static func value(_ flag: String) -> String? {
         let args = CommandLine.arguments
@@ -24,4 +25,5 @@ enum LaunchOptions {
     static var showSettings: Bool { CommandLine.arguments.contains("--settings") }
     /// Opens on Repeated Rules instead of the overview, for the website's screenshot.
     static var showRepeatedRules: Bool { CommandLine.arguments.contains("--repeated-rules") }
+    static var showSkills: Bool { CommandLine.arguments.contains("--skills") }
 }

@@ -4,14 +4,21 @@
 #
 #   ./scripts/make-demo.sh /tmp/rulebook-demo
 #   build/Rulebook.app/Contents/MacOS/Rulebook --root /tmp/rulebook-demo --no-global --store /tmp/rulebook-demo-store
+#
+# With a second folder, it also fills that one as a stand-in home with global skills. Run the app with HOME and
+# CFFIXED_USER_HOME set to it, and without --no-global:
+#
+#   ./scripts/make-demo.sh /tmp/demo-home/Projects /tmp/demo-home
 set -euo pipefail
 
-DEMO="${1:?usage: make-demo.sh <folder>}"
+DEMO="${1:?usage: make-demo.sh <folder> [home]}"
+DEMO_HOME="${2:-}"
 if [ -e "$DEMO" ] && [ -n "$(ls -A "$DEMO")" ]; then
   echo "$DEMO already exists and isn't empty" >&2
   exit 1
 fi
 mkdir -p "$DEMO"
+if [ -n "$DEMO_HOME" ]; then mkdir -p "$DEMO_HOME" && DEMO_HOME="$(cd "$DEMO_HOME" && pwd)"; fi
 cd "$DEMO"
 
 project() { mkdir -p "$1" && git -C "$1" init -q; }
@@ -344,6 +351,117 @@ CLI for rotating API keys. Go.
 - `go test ./...` and `golangci-lint run` must pass.
 - Never print a key, even in debug output.
 EOF
+
+# Skills, in every relation their folders can have.
+# skill <folder> <name> <description>, with the body on stdin.
+skill() {
+  mkdir -p "$1"
+  { printf -- '---\nname: %s\ndescription: %s\n---\n\n' "$2" "$3"; cat; } > "$1/SKILL.md"
+}
+
+# Linked: one folder in .agents/skills, and a link to it where Claude Code looks.
+skill aurora/.agents/skills/release-notes release-notes "Write the release notes for an Aurora release from the merged pull requests. Use when cutting a release or when asked what changed since the last one." <<'EOF'
+# Release notes
+
+1. List the pull requests merged since the last tag: `git log --merges --oneline $(git describe --tags --abbrev=0)..`
+2. Group them under New, Improved and Fixed. Leave out refactors and dependency bumps.
+3. Write each line for a customer, not for an engineer. See [the style guide](references/style.md).
+4. Save the result to `CHANGELOG.md` above the previous release.
+EOF
+mkdir -p aurora/.agents/skills/release-notes/references aurora/.claude/skills
+printf '# Style\n\n- One sentence per change, in the present tense.\n- Name the screen, not the component.\n' > aurora/.agents/skills/release-notes/references/style.md
+ln -s ../../.agents/skills/release-notes aurora/.claude/skills/release-notes
+
+# Diverged: the copy Claude Code loads was edited, and the one other agents load was not.
+skill harbor-api/.agents/skills/db-migration db-migration "Write and check a Postgres migration for Harbor API. Use when a change touches the schema." <<'EOF'
+# Database migration
+
+1. Create the migration with `make migration name=<what_it_does>`.
+2. Write both `up` and `down`. A migration without a working `down` doesn't merge.
+3. Run `make migrate && make rollback && make migrate` against a local database.
+EOF
+skill harbor-api/.claude/skills/db-migration db-migration "Write and check a Postgres migration for Harbor API. Use when a change touches the schema." <<'EOF'
+# Database migration
+
+1. Create the migration with `make migration name=<what_it_does>`.
+2. Write both `up` and `down`. A migration without a working `down` doesn't merge.
+3. Add an index for every new foreign key, created with `CONCURRENTLY`.
+4. Run `make migrate && make rollback && make migrate` against a local database.
+EOF
+
+# Duplicated: a tool wrote the same folder into both places.
+for home in .agents .claude; do
+skill ledger/$home/skills/month-close month-close "Reconcile a month of ledger entries against the bank export and report what doesn't match. Use for month-end close." <<'EOF'
+# Month close
+
+1. Import the bank export with `bin/ledger import <file.csv>`.
+2. Run `bin/ledger reconcile --month <YYYY-MM>` and list every unmatched entry.
+3. Never post an adjusting entry yourself. Report the differences and stop.
+EOF
+done
+
+# Only where Claude Code looks, and it links to a file that isn't there.
+skill fieldnotes/.claude/skills/field-report field-report "Turn raw field notes into a dated report with observations, photos and open questions. Use when notes are pasted in or a report is asked for." <<'EOF'
+# Field report
+
+Follow [the report template](assets/template.md). Keep the observer's own words in quotes.
+EOF
+
+# Only where other agents look.
+skill sparrow/.agents/skills/sync-fixtures sync-fixtures "Refresh the recorded HTTP fixtures used by Sparrow's tests. Use when a test fails on a stale fixture." <<'EOF'
+# Sync fixtures
+
+Run `swift run sparrow-fixtures record`, then review the diff before committing it.
+EOF
+
+# No description, so agents can't tell when to use it. And a link whose target was deleted.
+mkdir -p kiln/.claude/skills/glaze-check
+printf '# Glaze check\n\nCompare the firing schedule in `schedules/` with the glaze notes before a kiln run.\n' > kiln/.claude/skills/glaze-check/SKILL.md
+ln -s ../../.agents/skills/kiln-log kiln/.claude/skills/kiln-log
+
+# The same skill copied into several projects, one copy changed since.
+for name in beacon ember heron meadow; do
+skill $name/.agents/skills/pr-description pr-description "Write a pull request description from the branch's commits and diff. Use when opening or updating a pull request." <<'EOF'
+# Pull request description
+
+Say what changed and why in two or three sentences, then how it was tested. Link the issue it closes.
+EOF
+mkdir -p $name/.claude/skills && ln -s ../../.agents/skills/pr-description $name/.claude/skills/pr-description
+done
+printf '\nAdd a screenshot for any change a user can see.\n' >> meadow/.agents/skills/pr-description/SKILL.md
+# `npx skills` installed it, and says so in each project's lock file.
+for name in beacon ember heron meadow; do
+  printf '{\n  "version": 1,\n  "skills": {\n    "pr-description": {\n      "source": "northwind/agent-skills",\n      "sourceType": "github"\n    }\n  }\n}\n' > $name/skills-lock.json
+done
+
+# Global skills, when a stand-in home was given.
+if [ -n "$DEMO_HOME" ]; then
+  mkdir -p "$DEMO_HOME/.claude/skills" "$DEMO_HOME/.codex/skills"
+  skill "$DEMO_HOME/.agents/skills/commit-message" commit-message "Write a commit message in the imperative mood from the staged diff. Use when asked to commit." <<'EOF'
+# Commit message
+
+A subject of at most 60 characters, a blank line, then why the change was made.
+EOF
+  ln -s ../../.agents/skills/commit-message "$DEMO_HOME/.claude/skills/commit-message"
+  skill "$DEMO_HOME/.agents/skills/screenshot-tidy" screenshot-tidy "Rename, crop and compress screenshots before they go into a document or a pull request. Use when given screenshots to clean up." <<'EOF'
+# Screenshot tidy
+
+Crop to the window, strip metadata and convert to WebP with `cwebp -lossless`.
+EOF
+  # A personal skill with the name of a project's skill: Claude Code runs this one in Aurora too.
+  skill "$DEMO_HOME/.claude/skills/release-notes" release-notes "Write release notes from the merged pull requests. Use when cutting a release." <<'EOF'
+# Release notes
+
+Group merged pull requests under Added, Changed and Fixed, newest first.
+EOF
+  skill "$DEMO_HOME/.codex/skills/sql-explain" sql-explain "Explain a slow SQL query from its plan and suggest an index. Use when given EXPLAIN output." <<'EOF'
+# SQL explain
+
+Read the plan from the innermost node out. Name the node that takes the most time before suggesting anything.
+EOF
+  ln -s ../../.agents/skills/tone-check "$DEMO_HOME/.codex/skills/tone-check"
+  printf '{\n  "version": 3,\n  "skills": {\n    "commit-message": {\n      "source": "northwind/agent-skills",\n      "sourceType": "github"\n    }\n  }\n}\n' > "$DEMO_HOME/.agents/.skill-lock.json"
+fi
 
 # Repos with no instructions at all.
 project atlas

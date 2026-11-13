@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 AppModel.shared.rescanNow()
                 if let doc = AppModel.shared.doc(path) {
-                    AppModel.shared.select(path)
+                    if doc.skill != nil { AppModel.shared.openSkill(path) } else { AppModel.shared.select(path) }
                     if args.contains("--compare") {
                         try? await Task.sleep(for: .seconds(1))
                         AppModel.shared.openCompare(doc)
@@ -131,6 +131,7 @@ struct RulebookCommands: Commands {
             Button("Overview") { model.selection = .overview }
                 .keyboardShortcut("0")
             Button("Repeated Rules") { model.selection = .repeatedRules }
+            Button("Skills") { model.selection = .skills }
             Divider()
             Button("Previous File") { model.move(-1) }
                 .keyboardShortcut(.upArrow, modifiers: [.command, .option])
@@ -142,17 +143,17 @@ struct RulebookCommands: Commands {
         CommandMenu("Tools") {
             Button("Audit This File") { model.auditCurrent() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
-                .disabled(model.currentDoc == nil)
+                .disabled(model.currentDoc == nil || model.currentDoc?.skill != nil)
             Button("Audit All…") { model.confirmAuditAll() }
                 .keyboardShortcut("a", modifiers: [.command, .shift, .option])
             Button("Stop Audits") { model.stopAllAudits() }
             Divider()
             Button("Compare AGENTS.md and CLAUDE.md") { if let d = model.currentDoc { model.openCompare(d) } }
                 .keyboardShortcut("d", modifiers: [.command, .option])
-                .disabled(model.currentDoc?.siblingID == nil)
+                .disabled(model.currentDoc?.siblingID == nil || model.currentDoc?.skill != nil)
             Button("Merge AGENTS.md and CLAUDE.md…") { if let d = model.currentDoc { model.reconcile(d) } }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
-                .disabled(model.currentDoc?.siblingID == nil)
+                .disabled(model.currentDoc?.siblingID == nil || model.currentDoc?.skill != nil)
         }
     }
 }

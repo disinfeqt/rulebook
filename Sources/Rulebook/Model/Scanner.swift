@@ -11,6 +11,8 @@ enum Scanner {
     struct Collected {
         var files: [InstructionFile] = []
         var gitRoots: Set<String> = []
+        /// The `.claude/skills` and `.agents/skills` folders inside the projects.
+        var skillLocations: [SkillScan.Location] = []
         var dirs = 0
     }
 
@@ -19,6 +21,7 @@ enum Scanner {
     static func collect(root: URL) -> Collected {
         var c = Collected()
         let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser.standardizedFileURL.path
         let homeClaude = fm.homeDirectoryForCurrentUser.appendingPathComponent(".claude").standardizedFileURL.path
         let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
         guard let en = fm.enumerator(at: root, includingPropertiesForKeys: keys,
@@ -37,6 +40,14 @@ enum Scanner {
             }
             if isDir {
                 c.dirs += 1
+                // Skills sit one level further in than the walk goes. The home folder's own are the global ones.
+                if let skillHome = name == ".claude" ? SkillHome.claude : (name == ".agents" ? .agents : nil) {
+                    let base = url.deletingLastPathComponent().standardizedFileURL
+                    let skills = url.appendingPathComponent("skills", isDirectory: true)
+                    if base.path != home, fm.fileExists(atPath: skills.path) {
+                        c.skillLocations.append(.init(skillsDir: skills, home: skillHome, base: base, isGlobal: false))
+                    }
+                }
                 let hiddenSkip = name.hasPrefix(".") && name != ".claude"
                 // Inside .claude only the top level matters (skills, worktrees, agents… are not instructions).
                 if skipDirs.contains(name) || hiddenSkip || parentName == ".claude"
@@ -181,6 +192,13 @@ enum Scanner {
 
         let groups = blockGroups(docs)
         for (id, issues) in driftIssues(groups) { docs[id]?.staticIssues += issues }
+        let repeated = RepeatedRules.find(in: Array(docs.values))
+
+        // Skills are documents too, so they open, save and compare like the files above. They stay out of
+        // `projects`, which is the instruction files.
+        let skills = SkillScan.analyze(collected.skillLocations + (includeGlobal ? SkillScan.globalLocations() : []),
+                                       root: root, gitRoots: collected.gitRoots)
+        for d in skills.docs { docs[d.id] = d }
 
         // Content issues for the saved text, so the sidebar can flag files without opening them.
         for (id, d) in docs {
@@ -197,7 +215,7 @@ enum Scanner {
 
         return ScanResult(root: root, date: Date(), projects: projects, docs: docs, fileCount: fileCount,
                           foldersVisited: collected.dirs, missing: missing,
-                          blockGroups: groups, repeatedRules: RepeatedRules.find(in: Array(docs.values)),
+                          blockGroups: groups, repeatedRules: repeated, skills: skills.entries,
                           duration: Date().timeIntervalSince(start))
     }
 
@@ -376,6 +394,12 @@ struct ContentInsights {
     let issues: [Issue]
 
     static func compute(text: String, doc: Doc, siblingText: String?) -> ContentInsights {
+        if let skill = doc.skill {
+            // A SKILL.md has no imports: agents read `@path` in it as plain text.
+            let stats = MarkdownScan.stats(text)
+            return ContentInsights(stats: stats, imports: [], blocks: [],
+                                   issues: SkillScan.issues(text: text, stats: stats, doc: doc, skill: skill))
+        }
         let imports = MarkdownScan.imports(in: text, baseDir: doc.primary.containingDir)
         let blocks = MarkdownScan.managedBlocks(in: text)
         let stats = MarkdownScan.stats(text)

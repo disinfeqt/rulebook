@@ -89,6 +89,21 @@ enum CLI {
             print("   \(rule.projectCount) projects, \(rule.wordings) wording(s): \(rule.text)")
             for o in rule.occurrences { print("      \(o.project)/\(o.file):\(o.line)  \(o.text)") }
         }
+        print("\nSkills:")
+        for entry in r.skills {
+            guard let d = entry.docID.flatMap({ r.docs[$0] }), let skill = d.skill else {
+                print("   \(entry.projectName)/\(entry.name)  \(entry.dir.path.tildePath)")
+                if let issue = entry.issue { print("      [\(issue.severity)] \(issue.title)\(issue.fixes.isEmpty ? "" : "  fixes: \(issue.fixes)")") }
+                continue
+            }
+            let front = SkillScan.frontmatter(in: d.primary.content)
+            let extra = skill.copies.map { "+\($0.path.tildePath)" } + skill.links.map { "←\($0.path.tildePath)" }
+            print("   \(entry.projectName)/\(entry.name)  \(skill.dir.path.tildePath) \(extra.joined(separator: " "))  role=\(d.role) files=\(skill.files.count) listed≈\(SkillScan.listingTokens(name: skill.name, description: front?.description ?? ""))")
+            print("      claude: \(d.readers.claude.reads ? "✓" : "✗") \(d.readers.claude.note)   others: \(d.readers.others.reads ? "✓" : "✗") \(d.readers.others.note)")
+            for issue in d.savedIssues {
+                print("      [\(issue.severity)] \(issue.title)\(issue.fixes.isEmpty ? "" : "  fixes: \(issue.fixes)")")
+            }
+        }
         print("\nNo instructions: \(r.missing.map(\.lastPathComponent).joined(separator: ", "))")
     }
 }

@@ -20,6 +20,18 @@ struct ContentView: View {
                 }
             } else if model.selection == .repeatedRules {
                 RepeatedRulesView()
+            } else if model.selection == .skills {
+                // A skill opens on top of the list, so Back returns to the list where it was left.
+                NavigationStack(path: $model.skillPath) {
+                    SkillsView()
+                        .navigationDestination(for: String.self) { id in
+                            if let doc = model.doc(id) {
+                                DocDetailView(doc: doc).id(id)
+                            } else {
+                                ContentUnavailableView("File Not Found", systemImage: "doc.questionmark")
+                            }
+                        }
+                }
             } else {
                 OverviewView()
             }
@@ -47,6 +59,7 @@ struct ContentView: View {
             if model.scan == nil { model.rescan() }
             if LaunchOptions.showSettings { openSettings() }
             if LaunchOptions.showRepeatedRules { model.selection = .repeatedRules }
+            if LaunchOptions.showSkills { model.selection = .skills }
         }
     }
 }
@@ -81,6 +94,9 @@ struct SidebarView: View {
                 Label("Repeated Rules", systemImage: "square.on.square")
                     .tag(SidebarItem.repeatedRules)
                     .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
+                Label("Skills", systemImage: "puzzlepiece.extension")
+                    .tag(SidebarItem.skills)
+                    .help("The skills in your projects and your home folder, and which agents load each one.")
             }
             // A project with one file is one row, named for the project. One with several is its name with its files under it.
             let projects = model.visibleProjects
@@ -236,7 +252,7 @@ struct DocDetailView: View {
         VStack(spacing: 0) {
             MarkdownEditor(text: Binding(get: { model.text(for: doc) },
                                          set: { model.setText($0, for: doc.id) }),
-                           baseDir: doc.primary.containingDir, controller: editor)
+                           baseDir: doc.primary.containingDir, isSkill: doc.skill != nil, controller: editor)
             Divider()
             StatusBar(doc: doc, stats: insights.stats)
         }
@@ -244,16 +260,18 @@ struct DocDetailView: View {
         .navigationSubtitle(model.isDirty(doc.id) ? L("%@ — Edited", doc.projectName) : doc.projectName)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button { model.audit(doc) } label: { ToolbarTitle("Audit") }
-                    .disabled(model.jobs[doc.id].map { $0.error == nil } ?? false)
-                    .help("Check this file against its project for outdated or conflicting instructions")
+                if doc.skill == nil {
+                    Button { model.audit(doc) } label: { ToolbarTitle("Audit") }
+                        .disabled(model.jobs[doc.id].map { $0.error == nil } ?? false)
+                        .help("Check this file against its project for outdated or conflicting instructions")
+                }
                 Button { model.showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
                     .help("Show or hide the inspector")
             }
         }
         .inspector(isPresented: $model.showInspector) {
             InspectorView(doc: doc, issues: issues, editor: editor)
-                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
         }
         .onAppear {
             let line = model.revealLineOnAppear
@@ -281,7 +299,8 @@ struct StatusBar: View {
             Spacer()
             Text(LN(stats.lines, "%d line", "%d lines"))
             Text(L("≈%d tokens", stats.tokens))
-                .help("A rough estimate of the context this file takes up in every session")
+                .help(doc.skill == nil ? L("A rough estimate of the context this file takes up in every session")
+                                       : L("A rough estimate of the context this skill takes up once an agent uses it"))
         }
         .font(.caption)
         .foregroundStyle(.secondary)

@@ -48,6 +48,8 @@ final class EditorController {
 struct MarkdownEditor: NSViewRepresentable {
     @Binding var text: String
     let baseDir: URL
+    /// A SKILL.md: it opens with frontmatter, and an `@path` in it is plain text, not an import.
+    var isSkill = false
     let controller: EditorController
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -80,7 +82,7 @@ struct MarkdownEditor: NSViewRepresentable {
         tv.backgroundColor = .textBackgroundColor
         tv.insertionPointColor = .controlAccentColor
         tv.string = text
-        MarkdownHighlighter.highlight(tv.textStorage!, baseDir: baseDir)
+        MarkdownHighlighter.highlight(tv.textStorage!, baseDir: baseDir, isSkill: isSkill)
         tv.setSelectedRange(NSRange(location: 0, length: 0))
         context.coordinator.textView = tv
         controller.textView = tv
@@ -98,7 +100,7 @@ struct MarkdownEditor: NSViewRepresentable {
             tv.textStorage?.replaceCharacters(in: full, with: text)
             tv.didChangeText()
         }
-        MarkdownHighlighter.highlight(tv.textStorage!, baseDir: baseDir)
+        MarkdownHighlighter.highlight(tv.textStorage!, baseDir: baseDir, isSkill: isSkill)
         coordinator.isApplyingExternalChange = false
     }
 
@@ -114,7 +116,7 @@ struct MarkdownEditor: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let tv = notification.object as? NSTextView, !isApplyingExternalChange else { return }
-            MarkdownHighlighter.highlight(tv.textStorage!, baseDir: parent.baseDir)
+            MarkdownHighlighter.highlight(tv.textStorage!, baseDir: parent.baseDir, isSkill: parent.isSkill)
             parent.text = tv.string
         }
     }
@@ -140,8 +142,9 @@ enum MarkdownHighlighter {
     static let quote = try! NSRegularExpression(pattern: "^>.*$", options: [.anchorsMatchLines])
     static let strong = try! NSRegularExpression(pattern: "\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__")
     static let link = try! NSRegularExpression(pattern: "\\[([^\\]\\n]+)\\]\\(([^)\\n]+)\\)")
+    static let frontmatterKey = try! NSRegularExpression(pattern: "^[A-Za-z_][A-Za-z0-9_-]*:", options: [.anchorsMatchLines])
 
-    static func highlight(_ storage: NSTextStorage, baseDir: URL) {
+    static func highlight(_ storage: NSTextStorage, baseDir: URL, isSkill: Bool = false) {
         let text = storage.string
         let full = NSRange(location: 0, length: (text as NSString).length)
         storage.beginEditing()
@@ -177,7 +180,17 @@ enum MarkdownHighlighter {
                                  range: NSRange(location: r.location + r.length - ticks, length: ticks))
         }
         apply(MarkdownScan.commentRegex, [.foregroundColor: NSColor.tertiaryLabelColor])
-        for imp in MarkdownScan.imports(in: text, baseDir: baseDir) {
+        if isSkill, let front = SkillScan.frontmatter(in: text), front.closed {
+            // The block agents read first: its keys step back, so the name and description stand out.
+            for m in frontmatterKey.matches(in: text, range: front.range) {
+                storage.addAttributes([.font: font, .foregroundColor: NSColor.secondaryLabelColor], range: m.range)
+            }
+            for edge in [NSRange(location: 0, length: 3), NSRange(location: NSMaxRange(front.range) - 4, length: 3)]
+            where (text as NSString).substring(with: edge) == "---" {
+                storage.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, range: edge)
+            }
+        }
+        for imp in isSkill ? [] : MarkdownScan.imports(in: text, baseDir: baseDir) {
             var attrs: [NSAttributedString.Key: Any] = [.font: semibold,
                                                         .foregroundColor: imp.exists ? NSColor.controlAccentColor : NSColor.systemOrange]
             if !imp.exists {

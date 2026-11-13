@@ -29,7 +29,7 @@ struct OverviewView: View {
     var body: some View {
         Group {
             if let scan = model.scan {
-                if scan.docs.isEmpty && scan.missing.isEmpty {
+                if scan.projects.isEmpty && scan.missing.isEmpty {
                     ContentUnavailableView {
                         Label("No Instruction Files", systemImage: "doc.text.magnifyingglass")
                     } description: {
@@ -70,7 +70,7 @@ struct OverviewView: View {
 
     private var subtitle: String {
         let path = model.rootPath?.tildePath ?? ""
-        let attention = model.scan?.docs.values.filter(\.needsAttention).count ?? 0
+        let attention = model.scan?.docs.values.filter { $0.skill == nil && $0.needsAttention }.count ?? 0
         return attention == 0 ? path : path + " — " + LN(attention, "%d file needs attention", "%d files need attention")
     }
 

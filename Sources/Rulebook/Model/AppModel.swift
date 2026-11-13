@@ -5,6 +5,7 @@ import SwiftUI
 enum SidebarItem: Hashable {
     case overview
     case repeatedRules
+    case skills
     case doc(String)
 }
 
@@ -62,6 +63,7 @@ final class AppModel {
             defaults.set(rootPath, forKey: Keys.root)
             scan = nil
             selection = .overview
+            skillPath = []
             rescan()
         }
     }
@@ -89,6 +91,8 @@ final class AppModel {
     var scan: ScanResult?
     var isScanning = false
     var selection: SidebarItem? = .overview
+    /// The skill open on top of the Skills list, as the one element of its navigation path.
+    var skillPath: [String] = []
     var searchText = ""
     var attentionOnly = false
     var showInspector: Bool { didSet { defaults.set(showInspector, forKey: Keys.inspector) } }
@@ -162,6 +166,7 @@ final class AppModel {
 
     var currentDoc: Doc? {
         if case .doc(let id) = selection { return doc(id) }
+        if selection == .skills, let id = skillPath.last { return doc(id) }
         return nil
     }
 
@@ -212,6 +217,12 @@ final class AppModel {
     func select(_ id: String, focusEditor: Bool = false) {
         focusEditorOnAppear = focusEditor
         selection = .doc(id)
+    }
+
+    func openSkill(_ id: String) {
+        focusEditorOnAppear = true
+        selection = .skills
+        skillPath = [id]
     }
 
     /// Opens a file with its editor scrolled to `line` and the line selected.
@@ -276,6 +287,13 @@ final class AppModel {
                 d.allFiles.contains { $0.id == id } || d.linkedFrom.contains { $0.file.id == id }
             } ?? previous?.docs[id].flatMap { old in result.docs.values.first { $0.locationDir == old.locationDir } }
             selection = successor.map { .doc($0.id) } ?? .overview
+        }
+        if let open = skillPath.last, result.docs[open] == nil {
+            // The open skill's folder became a link to another one, or went to the Trash.
+            let successor = result.docs.values.first { d in
+                d.skill != nil && (d.allFiles.contains { $0.id == open } || d.linkedFrom.contains { $0.file.id == open })
+            }
+            skillPath = successor.map { [$0.id] } ?? []
         }
         if rescanQueued {
             rescanQueued = false
@@ -493,12 +511,200 @@ final class AppModel {
             setText(MarkdownScan.retitled(text(for: doc), to: name), for: doc.id)
         case .wrapInBackticks(let raw):
             setText(MarkdownScan.wrappingInBackticks(raw, in: text(for: doc)), for: doc.id)
+        case .linkSkill(let home):
+            guard let skill = doc.skill else { return }
+            let link = doc.locationDir.appendingPathComponent(home.folder).appendingPathComponent(skill.name)
+            let target = doc.primary.resolvedURL.deletingLastPathComponent()
+            confirm(L("Link this skill into %@?", home.folder),
+                    L("Rulebook will add %1$@ as a link to %2$@, so agents that look in either place use the same folder.",
+                      link.path.tildePath, target.path.tildePath),
+                    action: L("Link")) { [weak self] in
+                guard let self, self.makeLink(at: link, to: target) else { return }
+                self.rescanNow()
+            }
+        case .moveSkillToAgents:
+            guard let skill = doc.skill else { return }
+            let from = doc.primary.resolvedURL.deletingLastPathComponent()
+            let to = doc.locationDir.appendingPathComponent(SkillHome.agents.folder).appendingPathComponent(skill.name)
+            confirm(L("Move this skill to %@?", SkillHome.agents.folder),
+                    L("The folder moves to %1$@, where Codex and other agents look. A link stays at %2$@, so Claude Code keeps finding it.",
+                      to.path.tildePath, skill.dir.path.tildePath),
+                    action: L("Move")) { [weak self] in
+                guard let self else { return }
+                if self.isDirty(doc.id), !self.save(doc.id) { return }
+                do {
+                    try FileManager.default.createDirectory(at: to.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try FileManager.default.moveItem(at: from, to: to)
+                } catch {
+                    self.showError(L("Couldn't move %@", skill.name), error)
+                    return
+                }
+                _ = self.makeLink(at: skill.dir, to: to)
+                self.rescanNow()
+            }
+        case .linkSkillCopies:
+            guard let skill = doc.skill, !skill.copies.isEmpty else { return }
+            let target = doc.primary.resolvedURL.deletingLastPathComponent()
+            confirm(L("Replace the copy with a link?"),
+                    L("%1$@ moves to the Trash, and a link to %2$@ takes its place. Agents keep finding the skill in both places.",
+                      ListFormatter.localizedString(byJoining: skill.copies.map(\.path.tildePath)), target.path.tildePath),
+                    action: L("Replace")) { [weak self] in
+                guard let self else { return }
+                if self.isDirty(doc.id), !self.save(doc.id) { return }
+                // The scan compared names and sizes. Nothing goes to the Trash unless every file matches.
+                let kept = SkillScan.signature(of: target)
+                for copy in skill.copies {
+                    guard SkillScan.signature(of: copy.resolvingSymlinksInPath()) == kept else {
+                        self.alert = AlertInfo(title: L("The copies aren't the same"),
+                                               message: L("%@ has files that differ, so it was left in place.", copy.path.tildePath),
+                                               actions: [.init(title: L("OK"), role: .cancel) {}])
+                        break
+                    }
+                    if !self.replaceWithLink(copy, target: target) { break }
+                }
+                self.rescanNow()
+            }
+        case .useSkillVersion:
+            guard let skill = doc.skill, let other = sibling(of: doc), let otherSkill = other.skill else { return }
+            let kept = doc.primary.resolvedURL.deletingLastPathComponent()
+            let replaced = [otherSkill.dir] + otherSkill.copies
+            // The version that stays ends up in .agents/skills with links to it, the layout `npx skills` writes,
+            // when it's a folder of its own and the one it replaces was there.
+            let agentsDir = doc.primary.isSymlink || skill.home == .agents ? nil
+                : replaced.first { $0.deletingLastPathComponent().path.hasSuffix("/" + SkillHome.agents.folder) }
+            let names = ListFormatter.localizedString(byJoining: replaced.map(\.path.tildePath))
+            confirm(L("Use this version of %@ everywhere?", skill.name),
+                    agentsDir == nil
+                        ? L("%1$@ moves to the Trash, and a link to %2$@ takes its place, so every agent gets this version.", names, kept.path.tildePath)
+                        : L("%1$@ moves to the Trash. This version takes its place, and %2$@ becomes a link to it, so every agent gets this version.", names, skill.dir.path.tildePath),
+                    action: L("Replace")) { [weak self] in
+                guard let self else { return }
+                if self.isDirty(doc.id), !self.save(doc.id) { return }
+                self.drafts[other.id] = nil
+                defer { self.rescanNow() }
+                var target = kept
+                for dir in replaced {
+                    do {
+                        try FileManager.default.trashItem(at: dir, resultingItemURL: nil)
+                    } catch {
+                        self.showError(L("Couldn't move %@ to the Trash", dir.lastPathComponent), error)
+                        return
+                    }
+                }
+                if let agentsDir {
+                    do {
+                        try FileManager.default.moveItem(at: kept, to: agentsDir)
+                    } catch {
+                        self.showError(L("Couldn't move %@", skill.name), error)
+                        return
+                    }
+                    target = agentsDir
+                    guard self.makeLink(at: skill.dir, to: target) else { return }
+                }
+                for dir in replaced where dir != target {
+                    guard self.makeLink(at: dir, to: target) else { return }
+                }
+            }
+        case .removeSkillLink(let url):
+            removeSkillLink(url)
+        case .renameSkill(let name):
+            setText(SkillScan.renamed(text(for: doc), to: name), for: doc.id)
         }
+    }
+
+    // MARK: Skills
+
+    /// The path a link in `dir` needs to reach `target`: relative when they're near each other, as tools that
+    /// install skills write it, so the link survives the folder above them being moved.
+    static func linkPath(from dir: URL, to target: URL) -> String {
+        let a = dir.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        let b = target.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        var shared = 0
+        while shared < a.count, shared < b.count, a[shared] == b[shared] { shared += 1 }
+        guard shared > 1, a.count - shared <= 3 else { return target.path }
+        return (Array(repeating: "..", count: a.count - shared) + b[shared...]).joined(separator: "/")
+    }
+
+    private func makeLink(at link: URL, to target: URL) -> Bool {
+        do {
+            let dir = link.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try FileManager.default.createSymbolicLink(atPath: link.path, withDestinationPath: Self.linkPath(from: dir, to: target))
+            return true
+        } catch {
+            showError(L("Couldn't link %@", link.lastPathComponent), error)
+            return false
+        }
+    }
+
+    /// Moves a skill folder, or a link to one, to the Trash and puts a link to `target` where it was.
+    private func replaceWithLink(_ dir: URL, target: URL) -> Bool {
+        do {
+            try FileManager.default.trashItem(at: dir, resultingItemURL: nil)
+        } catch {
+            showError(L("Couldn't move %@ to the Trash", dir.lastPathComponent), error)
+            return false
+        }
+        return makeLink(at: dir, to: target)
+    }
+
+    /// Removes a link whose target is gone. Anything else at that path is left alone.
+    func removeSkillLink(_ url: URL) {
+        confirm(L("Remove this link?"),
+                L("%@ points at a folder that doesn't exist. Removing it changes nothing for agents.", url.path.tildePath),
+                action: L("Remove")) { [weak self] in
+            let isLink = (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink ?? false
+            if isLink, !FileManager.default.fileExists(atPath: url.resolvingSymlinksInPath().path) {
+                do { try FileManager.default.removeItem(at: url) } catch { self?.showError(L("Couldn't remove %@", url.lastPathComponent), error) }
+            }
+            self?.rescanNow()
+        }
+    }
+
+    /// Moves a skill to the Trash: its folder, its identical copies and the links to it.
+    func confirmTrashSkill(_ doc: Doc) {
+        guard let skill = doc.skill else { return }
+        let dirs = [skill.dir] + skill.copies + skill.links
+        var message = L("%@ moves to the Trash, and agents stop finding the skill there.",
+                        ListFormatter.localizedString(byJoining: dirs.map(\.path.tildePath)))
+        if skill.isSynced { message += " " + L("Claude Code downloads it again while it's in your claude.ai account.") }
+        if skill.source != nil {
+            message += " " + L("npx skills still lists it. To remove it there too, run “npx skills remove %@”.", skill.name)
+        }
+        confirm(L("Move “%@” to the Trash?", skill.name), message, action: L("Move to Trash")) { [weak self] in
+            guard let self else { return }
+            self.drafts[doc.id] = nil
+            self.trash(dirs)
+        }
+    }
+
+    /// Moves a folder that isn't a skill, such as an empty one, out of a skills folder.
+    func confirmTrash(_ entry: SkillEntry) {
+        confirm(L("Move “%@” to the Trash?", entry.name),
+                L("%@ moves to the Trash, and agents stop finding the skill there.", entry.dir.path.tildePath),
+                action: L("Move to Trash")) { [weak self] in self?.trash([entry.dir]) }
+    }
+
+    private func trash(_ dirs: [URL]) {
+        for dir in dirs {
+            do {
+                try FileManager.default.trashItem(at: dir, resultingItemURL: nil)
+            } catch {
+                showError(L("Couldn't move %@ to the Trash", dir.lastPathComponent), error)
+                break
+            }
+        }
+        rescanNow()
     }
 
     /// AGENTS.md and CLAUDE.md docs of a pair, in that order.
     func pair(for doc: Doc) -> (agents: Doc, claude: Doc)? {
         guard let other = sibling(of: doc) else { return nil }
+        if let home = doc.skill?.home, let otherHome = other.skill?.home {
+            // For skills, the version Claude Code loads goes on the right, as CLAUDE.md does.
+            let order: [SkillHome] = [.agents, .codex, .claude]
+            return order.firstIndex(of: home)! <= order.firstIndex(of: otherHome)! ? (doc, other) : (other, doc)
+        }
         return doc.primary.kind == .agents ? (doc, other) : (other, doc)
     }
 
@@ -605,6 +811,8 @@ final class AppModel {
 
     /// Audit one file now (ahead of anything queued).
     func audit(_ doc: Doc) {
+        // Audits are written for instruction files. A skill would need its own.
+        guard doc.skill == nil else { return }
         if let job = jobs[doc.id], job.isRunning { return }
         guard checkedCLI() != nil else { return }
         showInspector = true
@@ -742,7 +950,7 @@ final class AppModel {
     // MARK: Merge
 
     func reconcile(_ doc: Doc) {
-        guard let pair = pair(for: doc) else { return }
+        guard doc.skill == nil, let pair = pair(for: doc) else { return }
         let jobID = Self.reconcileJobID(pair.agents.id)
         if jobs[jobID]?.isRunning == true { return }
         guard let cli = resolveCLI() else {

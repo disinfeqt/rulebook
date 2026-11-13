@@ -95,19 +95,30 @@ struct CompareSheet: View {
         if let agents = model.doc(request.agentsID), let claude = model.doc(request.claudeID) {
             let a = model.text(for: agents), c = model.text(for: claude)
             SheetFrame {
-                DiffView(leftTitle: L("%@, read by other agents", agents.primary.displayName),
-                         rightTitle: L("%@, read by Claude Code", claude.primary.displayName),
-                         leftText: a, rightText: c, leftTint: .orange, rightTint: .blue)
+                if let left = agents.skill, let right = claude.skill {
+                    // Two folders of one skill are told apart by where they are.
+                    let shown = { (dir: URL) in
+                        left.isGlobal ? dir.path.tildePath : (Scanner.relative(dir, to: agents.locationDir) ?? dir.path.tildePath)
+                    }
+                    DiffView(leftTitle: shown(left.dir), rightTitle: shown(right.dir),
+                             leftText: a, rightText: c, leftTint: .orange, rightTint: .blue)
+                } else {
+                    DiffView(leftTitle: L("%@, read by other agents", agents.primary.displayName),
+                             rightTitle: L("%@, read by Claude Code", claude.primary.displayName),
+                             leftText: a, rightText: c, leftTint: .orange, rightTint: .blue)
+                }
             } leading: {
                 Text(L("%d%% alike", Int((LineDiff.compare(a, c).similarity * 100).rounded())))
                     .foregroundStyle(.secondary)
             } buttons: {
-                Button("Merge…") {
-                    model.reconcile(agents)
-                    dismiss()
+                if agents.skill == nil {
+                    Button("Merge…") {
+                        model.reconcile(agents)
+                        dismiss()
+                    }
+                    .disabled(model.reconcileJob(for: agents)?.isRunning == true)
+                    .help(L("%@ combines both into one AGENTS.md and a CLAUDE.md that imports it. You review the result before it's saved.", model.engine.name))
                 }
-                .disabled(model.reconcileJob(for: agents)?.isRunning == true)
-                .help(L("%@ combines both into one AGENTS.md and a CLAUDE.md that imports it. You review the result before it's saved.", model.engine.name))
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
             }
             .onExitCommand { dismiss() }

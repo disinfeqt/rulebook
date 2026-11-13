@@ -3,7 +3,12 @@ import SwiftUI
 /// One row of the skills table: a skill, something in a skills folder that isn't one, or the skills one project
 /// got from one source, which open under it. It carries the values the columns sort by.
 struct SkillRow: Identifiable {
-    let id: String
+    /// Where the row is in the table, such as "4" or "4.12". Rows are told apart by position, not by skill, so
+    /// going from one project's skills to the next changes what the rows say instead of replacing every one of
+    /// them, which is most of what a switch used to cost.
+    var id = ""
+    /// The skill's path, or for a row of several skills their project and source.
+    let key: String
     /// Nil for a row that stands for several skills.
     var entry: SkillEntry? = nil
     /// Nil for a link that points nowhere, for an empty folder and for a row of several skills.
@@ -49,6 +54,7 @@ struct SkillsView: View {
         columns[visibility: "project"] = .hidden
         return columns
     }()
+    /// The selected rows, by their keys: positions would point at other skills after a rescan.
     @State private var selection: Set<String> = []
     @State private var sortOrder = [KeyPathComparator(\SkillRow.urgency, order: .reverse),
                                     KeyPathComparator(\SkillRow.name)]
@@ -75,7 +81,7 @@ struct SkillsView: View {
                     Text("Nothing needs attention").foregroundStyle(.secondary)
                 } else {
                     VStack(spacing: 0) {
-                        table(grouped(rows))
+                        table(arranged(grouped(rows)))
                         Divider()
                         footer(rows)
                     }
@@ -122,7 +128,7 @@ struct SkillsView: View {
             let doc = entry.docID.flatMap(model.doc)
             let issue = doc == nil ? entry.issue : doc?.topIssue
             return SkillRow(
-                id: entry.id, entry: entry, doc: doc, name: entry.name,
+                key: entry.id, entry: entry, doc: doc, name: entry.name,
                 project: doc.map { $0.relativeDir.isEmpty ? $0.projectName : $0.projectName + "/" + $0.relativeDir } ?? entry.projectName,
                 source: entry.source, description: entry.description, issue: issue,
                 readBy: doc?.readBy ?? "", readByRank: doc?.readByRank ?? -1,
@@ -146,7 +152,7 @@ struct SkillsView: View {
             guard members.count >= groupSize else { result += members; continue }
             let readers = Set(members.map(\.readBy))
             result.append(SkillRow(
-                id: id, name: members[0].source, project: members[0].project, source: members[0].source,
+                key: id, name: members[0].source, project: members[0].project, source: members[0].source,
                 readBy: readers.count == 1 ? members[0].readBy : L("Varies"),
                 readByRank: members.map(\.readByRank).min() ?? 0,
                 listed: members.reduce(0) { $0 + $1.listed }, tokens: members.reduce(0) { $0 + $1.tokens },
@@ -157,16 +163,48 @@ struct SkillsView: View {
         return result
     }
 
+    /// The rows in the order the table shows them, each given its position as its identity.
+    private func arranged(_ rows: [SkillRow]) -> [SkillRow] {
+        rows.sorted(using: sortOrder).enumerated().map { index, row in
+            var row = row
+            row.id = String(index)
+            row.children = row.children.sorted(using: sortOrder).enumerated().map { at, child in
+                var child = child
+                child.id = "\(index).\(at)"
+                return child
+            }
+            return row
+        }
+    }
+
+    /// The skills a set of rows stands for: the rows themselves, and those under a row of several.
+    private func skills(in rows: [SkillRow]) -> [SkillRow] {
+        var seen = Set<String>()
+        return rows.flatMap { $0.isGroup ? $0.children : [$0] }.filter { seen.insert($0.key).inserted }
+    }
+
     private func table(_ rows: [SkillRow]) -> some View {
         // Cells and the row menu are given the model, as in the overview: a table cell doesn't always get the
         // window's environment on macOS.
         let model = model
-        var byID: [String: SkillRow] = [:]
+        var byID: [String: SkillRow] = [:], idByKey: [String: String] = [:]
         for row in rows {
             byID[row.id] = row
-            for child in row.children { byID[child.id] = child }
+            idByKey[row.key] = row.id
+            for child in row.children {
+                byID[child.id] = child
+                idByKey[child.key] = child.id
+            }
         }
-        return Table(of: SkillRow.self, selection: $selection, sortOrder: $sortOrder,
+        // The table selects positions. What's kept is the skills at them.
+        let selected = Binding<Set<String>>(
+            get: { Set(selection.compactMap { idByKey[$0] }) },
+            set: { ids in selection = Set(ids.compactMap { byID[$0]?.key }) })
+        let trash = { (ids: Set<String>) in
+            let chosen = skills(in: ids.compactMap { byID[$0] })
+            model.confirmTrashSkills(chosen.compactMap(\.doc), others: chosen.filter { $0.doc == nil }.compactMap(\.entry))
+        }
+        return Table(of: SkillRow.self, selection: selected, sortOrder: $sortOrder,
                      columnCustomization: scope == nil ? $allColumns : $placeColumns) {
             TableColumn("Skill", value: \.name) { row in
                 HStack(spacing: 6) {
@@ -245,10 +283,10 @@ struct SkillsView: View {
             .width(min: 96, ideal: 150, max: 200)
             .customizationID("modified")
         } rows: {
-            ForEach(rows.sorted(using: sortOrder)) { row in
+            ForEach(rows) { row in
                 if row.isGroup {
-                    DisclosureTableRow(row, isExpanded: binding(row.id)) {
-                        ForEach(row.children.sorted(using: sortOrder)) { TableRow($0) }
+                    DisclosureTableRow(row, isExpanded: binding(row.key)) {
+                        ForEach(row.children) { TableRow($0) }
                     }
                 } else {
                     TableRow(row)
@@ -260,10 +298,16 @@ struct SkillsView: View {
         // The list of every skill has a column more, and a table doesn't fit its columns again when one appears.
         .id(scope == nil)
         .contextMenu(forSelectionType: String.self) { ids in
-            if let row = ids.first.flatMap({ byID[$0] }) {
-                if row.isGroup {
-                    Button(binding(row.id).wrappedValue ? "Collapse" : "Expand") { binding(row.id).wrappedValue.toggle() }
-                } else if let doc = row.doc {
+            let chosen = ids.compactMap { byID[$0] }
+            if chosen.count > 1 || chosen.first?.isGroup == true {
+                // Several rows, or a row of several skills: what can be done to all of them at once.
+                if let row = chosen.first, chosen.count == 1 {
+                    Button(binding(row.key).wrappedValue ? "Collapse" : "Expand") { binding(row.key).wrappedValue.toggle() }
+                    Divider()
+                }
+                Button(L("Move %d Skills to Trash…", skills(in: chosen).count)) { trash(ids) }
+            } else if let row = chosen.first {
+                if let doc = row.doc {
                     Button("Open") { model.openSkill(doc.id) }
                     SkillMenu(doc: doc).environment(model)
                 } else if let entry = row.entry {
@@ -279,13 +323,15 @@ struct SkillsView: View {
         } primaryAction: { ids in
             guard let row = ids.first.flatMap({ byID[$0] }) else { return }
             if row.isGroup {
-                binding(row.id).wrappedValue.toggle()
+                binding(row.key).wrappedValue.toggle()
             } else if let doc = row.doc {
                 model.openSkill(doc.id)
             } else if case .removeSkillLink(let url)? = row.issue?.fixes.first {
                 model.removeSkillLink(url)
             }
         }
+        // The Delete key, and Delete in the Edit menu, for whatever is selected.
+        .onDeleteCommand { if !selected.wrappedValue.isEmpty { trash(selected.wrappedValue) } }
     }
 
     private func binding(_ id: String) -> Binding<Bool> {

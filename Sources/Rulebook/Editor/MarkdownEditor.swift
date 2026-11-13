@@ -45,8 +45,12 @@ final class EditorController {
     }
 }
 
+/// One text view serves every file: building a new one for each was a quarter of what switching files cost.
+/// Each file keeps its own undo history, and starts at its top.
 struct MarkdownEditor: NSViewRepresentable {
     @Binding var text: String
+    /// Which file the text is. When it changes, the view is showing another file, not an edit to this one.
+    let docID: String
     let baseDir: URL
     /// A SKILL.md: it opens with frontmatter, and an `@path` in it is plain text, not an import.
     var isSkill = false
@@ -90,10 +94,25 @@ struct MarkdownEditor: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        context.coordinator.parent = self
-        guard let tv = scroll.documentView as? NSTextView, tv.string != text else { return }
-        // External change (revert, a fix, a Claude revision): replace through the text system so it's undoable.
         let coordinator = context.coordinator
+        let previous = coordinator.parent.docID
+        coordinator.parent = self
+        guard let tv = scroll.documentView as? NSTextView else { return }
+        if previous != docID {
+            // Another file. Its text goes in without an undo step: undoing must never bring back the last file.
+            coordinator.leave(previous, with: tv.string)
+            coordinator.isApplyingExternalChange = true
+            tv.breakUndoCoalescing()
+            tv.string = text
+            MarkdownHighlighter.highlight(tv.textStorage!, baseDir: baseDir, isSkill: isSkill)
+            coordinator.isApplyingExternalChange = false
+            coordinator.enter(docID, with: text)
+            tv.setSelectedRange(NSRange(location: 0, length: 0))
+            tv.scrollToBeginningOfDocument(nil)
+            return
+        }
+        guard tv.string != text else { return }
+        // External change (revert, a fix, a Claude revision): replace through the text system so it's undoable.
         coordinator.isApplyingExternalChange = true
         let full = NSRange(location: 0, length: (tv.string as NSString).length)
         if tv.shouldChangeText(in: full, replacementString: text) {
@@ -108,11 +127,27 @@ struct MarkdownEditor: NSViewRepresentable {
         var parent: MarkdownEditor
         weak var textView: NSTextView?
         var isApplyingExternalChange = false
-        private let undo = UndoManager()
+        /// An undo history per file, and the text each one's steps apply to.
+        private var undo: [String: UndoManager] = [:]
+        private var left: [String: String] = [:]
 
         init(_ parent: MarkdownEditor) { self.parent = parent }
 
-        func undoManager(for view: NSTextView) -> UndoManager? { undo }
+        func undoManager(for view: NSTextView) -> UndoManager? {
+            if let manager = undo[parent.docID] { return manager }
+            let manager = UndoManager()
+            undo[parent.docID] = manager
+            return manager
+        }
+
+        func leave(_ docID: String, with text: String) { left[docID] = text }
+
+        /// A file's undo steps only fit the text they were made on. If it comes back different, because it was
+        /// saved over, reverted or changed on disk, they're dropped.
+        func enter(_ docID: String, with text: String) {
+            if left[docID] != text { undo[docID]?.removeAllActions() }
+            left[docID] = nil
+        }
 
         func textDidChange(_ notification: Notification) {
             guard let tv = notification.object as? NSTextView, !isApplyingExternalChange else { return }

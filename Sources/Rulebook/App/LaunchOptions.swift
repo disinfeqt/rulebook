@@ -13,6 +13,7 @@ import Foundation
 ///     --skills          open on Skills
 ///     --skills-in <folder>  open on the skills of one project, or of the home folder with `global`
 ///     --open-skill-sets show the skills a project got from one source opened out, not as one row
+///     --tour <count>    step through the sidebar that many times, print what each step cost, and quit
 enum LaunchOptions {
     static func value(_ flag: String) -> String? {
         let args = CommandLine.arguments
@@ -28,6 +29,8 @@ enum LaunchOptions {
     /// Opens on Repeated Rules instead of the overview, for the website's screenshot.
     static var showRepeatedRules: Bool { CommandLine.arguments.contains("--repeated-rules") }
     static var showSkills: Bool { CommandLine.arguments.contains("--skills") }
+    /// How many steps through the sidebar to time, for finding what makes a switch slow.
+    static var tour: Int? { value("--tour").flatMap(Int.init) }
     /// The place whose skills to open on: a project's path, or "global".
     static var skillsPlace: String? {
         guard let i = CommandLine.arguments.firstIndex(of: "--skills-in"), i + 1 < CommandLine.arguments.count else { return nil }

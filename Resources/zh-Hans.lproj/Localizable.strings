@@ -389,3 +389,10 @@
 "Expand" = "展开";
 "Collapse" = "折叠";
 "All Projects" = "所有项目";
+
+/* Several skills at once */
+"Move %d Skills to Trash…" = "将 %d 个技能移到废纸篓…";
+"Move %d skills to the Trash?" = "要把 %d 个技能移到废纸篓吗？";
+"Their folders, with the copies of them and the links to them, move to the Trash, and agents stop finding them." = "它们的文件夹，连同副本和指向它们的链接，都会移到废纸篓，智能体将无法再找到它们。";
+"Claude Code downloads the ones in your claude.ai account again." = "其中属于你 claude.ai 账户的技能，Claude Code 会重新下载。";
+"npx skills still lists the ones it installed. To remove those there too, run “npx skills remove”." = "其中由 npx skills 安装的技能仍会被它列出。要在那边一并移除，请运行“npx skills remove”。";

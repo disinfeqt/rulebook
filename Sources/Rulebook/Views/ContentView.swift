@@ -353,8 +353,8 @@ struct ToolbarTitle: View {
 
 // MARK: Detail
 
-/// One file in the editor, with its inspector. The view stays when another file is chosen, so the toolbar and
-/// the inspector's column aren't built again for each one. Only the editor is, to keep each file's own undo.
+/// One file in the editor, with its inspector. The view stays when another file is chosen, so the toolbar, the
+/// inspector's column and the text view aren't built again for each one.
 struct DocDetailView: View {
     let doc: Doc
     @Environment(AppModel.self) private var model
@@ -367,8 +367,7 @@ struct DocDetailView: View {
         VStack(spacing: 0) {
             MarkdownEditor(text: Binding(get: { model.text(for: doc) },
                                          set: { model.setText($0, for: doc.id) }),
-                           baseDir: doc.primary.containingDir, isSkill: doc.skill != nil, controller: editor)
-                .id(doc.id)
+                           docID: doc.id, baseDir: doc.primary.containingDir, isSkill: doc.skill != nil, controller: editor)
             Divider()
             StatusBar(doc: doc, stats: insights.stats)
         }

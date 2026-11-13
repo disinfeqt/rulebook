@@ -24,6 +24,8 @@ It also flags broken `@imports`, stray `@mentions` that Claude Code would try to
 
 ![Editing a diverged CLAUDE.md. The inspector shows who reads the file and what's wrong with it](docs/screenshots/editor.webp)
 
+Rulebook watches the projects folder and your global folders, so a file changed in another editor, or a skill installed from a terminal, shows up within a second or so. Rescan (⌘R) scans on demand.
+
 ## Compare and merge
 
 When `CLAUDE.md` and `AGENTS.md` have drifted apart, Compare shows them side by side. Merge asks your agent to combine them into one `AGENTS.md` and a `CLAUDE.md` that imports it plus any Claude-only rules. You review the result before anything is saved.
@@ -48,7 +50,7 @@ A switch at the top of the sidebar turns it from rules to skills: the same proje
 | Claude Code or Other agents | The skill is only where one of them looks. One click links or moves it so both find it. |
 | Different versions | `.claude/skills` and `.agents/skills` hold folders that differ. Compare them, then keep one. |
 
-It also flags links that point nowhere, a SKILL.md without a description, links to files the skill doesn't have, a project skill hidden by a personal one of the same name, and copies that differ from the same skill in other projects. The skills a project got from one source are one row that opens, so forty from one repository don't fill the list. A skill opens in the editor like any other file. Folders a fix replaces go to the Trash.
+It also flags links that point nowhere, a SKILL.md without a description, links to files the skill doesn't have, a project skill hidden by a personal one of the same name, and copies that differ from the same skill in other projects. The skills a project got from one source are one row that opens, so forty from one repository don't fill the list. A skill opens in the editor like any other file. Select several skills, or a row that stands for a set of them, and Delete moves them to the Trash, where the folders a fix replaces go too.
 
 ## Audits
 

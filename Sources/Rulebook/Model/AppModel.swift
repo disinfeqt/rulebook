@@ -83,9 +83,10 @@ final class AppModel {
             selection = .overview
             skillPath = []
             rescan()
+            watch()
         }
     }
-    var includeGlobal: Bool { didSet { defaults.set(includeGlobal, forKey: Keys.global); rescan() } }
+    var includeGlobal: Bool { didSet { defaults.set(includeGlobal, forKey: Keys.global); rescan(); watch() } }
     /// The agent picked in Settings. Nil means the first one found on this Mac.
     var engineChoice: Engine? { didSet { defaults.set(engineChoice?.rawValue, forKey: Keys.engine); cliChecked = false } }
     /// A path typed in Settings, for a CLI that isn't where Rulebook looks.
@@ -136,6 +137,7 @@ final class AppModel {
     let launchLanguage = AppLanguage.saved
 
     @ObservationIgnored private var rescanQueued = false
+    @ObservationIgnored private var watcher: FolderWatcher?
     @ObservationIgnored private var pendingSelection: String?
     @ObservationIgnored private var cliChecked = false
 
@@ -156,6 +158,20 @@ final class AppModel {
         auditConcurrency = max(1, defaults.object(forKey: Keys.concurrency) as? Int ?? 2)
         assessments = AssessmentStore.load()
         refreshAgents()
+        watch()
+    }
+
+    /// Scans again when a file the app shows changes on disk: in the projects folder, and in the home folder's
+    /// `.claude`, `.agents` and `.codex` when the global files are included.
+    private func watch() {
+        watcher = nil
+        guard let root = rootURL else { return }
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let global = includeGlobal ? [".claude", ".agents", ".codex"].map { home.appendingPathComponent($0) } : []
+        let folders = ([root] + global).filter { FileManager.default.fileExists(atPath: $0.path) }
+        watcher = FolderWatcher(folders: folders) {
+            Task { @MainActor in AppModel.shared.rescan() }
+        }
     }
 
     var rootURL: URL? {
@@ -309,6 +325,15 @@ final class AppModel {
     }
 
     func move(_ delta: Int) {
+        if sidebarKind == .skills {
+            // On the Skills side the rows are places, so the same keys step through those.
+            let places = skillPlaces.map(\.id)
+            guard !places.isEmpty else { return }
+            let next = skillsPlace.flatMap(places.firstIndex(of:)).map { $0 + delta } ?? (delta > 0 ? 0 : places.count - 1)
+            guard places.indices.contains(next) else { NSSound.beep(); return }
+            selection = .skillsIn(places[next])
+            return
+        }
         let ids = visibleDocIDs
         guard !ids.isEmpty else { return }
         var index = delta > 0 ? 0 : ids.count - 1
@@ -757,6 +782,26 @@ final class AppModel {
         confirm(L("Move “%@” to the Trash?", skill.name), message, action: L("Move to Trash")) { [weak self] in
             guard let self else { return }
             self.drafts[doc.id] = nil
+            self.trash(dirs)
+        }
+    }
+
+    /// Moves several skills to the Trash at once, each with its copies and links, and with them the links and
+    /// empty folders selected alongside.
+    func confirmTrashSkills(_ docs: [Doc], others: [SkillEntry] = []) {
+        if docs.count == 1, others.isEmpty { return confirmTrashSkill(docs[0]) }
+        if docs.isEmpty, others.count == 1 { return confirmTrash(others[0]) }
+        let skills = docs.compactMap(\.skill)
+        let dirs = skills.flatMap { [$0.dir] + $0.copies + $0.links } + others.map(\.dir)
+        guard !dirs.isEmpty else { return }
+        var message = L("Their folders, with the copies of them and the links to them, move to the Trash, and agents stop finding them.")
+        if skills.contains(where: \.isSynced) { message += " " + L("Claude Code downloads the ones in your claude.ai account again.") }
+        if skills.contains(where: { $0.source != nil }) {
+            message += " " + L("npx skills still lists the ones it installed. To remove those there too, run “npx skills remove”.")
+        }
+        confirm(L("Move %d skills to the Trash?", docs.count + others.count), message, action: L("Move to Trash")) { [weak self] in
+            guard let self else { return }
+            for doc in docs { self.drafts[doc.id] = nil }
             self.trash(dirs)
         }
     }

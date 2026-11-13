@@ -37,6 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        if let steps = LaunchOptions.tour {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { Tour.run(steps: steps) }
+        }
         // Debug: save a picture of every window, then quit. Glass sidebars and toolbars only exist on screen,
         // so this asks screencapture for the real window (the terminal needs Screen Recording permission)
         // and falls back to an offscreen render, which leaves them blank.
@@ -84,6 +87,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidBecomeActive(_ notification: Notification) {
         // Pick up edits made in other editors.
         if AppModel.shared.scan != nil { AppModel.shared.rescan() }
+    }
+}
+
+/// Steps through the sidebar as Next File and Previous File do, and prints how long the main thread worked on
+/// each step. It changes the selection from inside the app, so it needs no keystrokes and no focus.
+@MainActor
+enum Tour {
+    private static func cpuSeconds() -> Double {
+        var time = timespec()
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time)
+        return Double(time.tv_sec) + Double(time.tv_nsec) / 1e9
+    }
+
+    static func run(steps: Int) {
+        var costs: [Double] = []
+        func step(_ n: Int, since: Double) {
+            // What the main thread used since the last step is the cost of that step, late work included.
+            if n > 0 { costs.append((cpuSeconds() - since) * 1000) }
+            guard n < steps else {
+                let sorted = costs.sorted()
+                print(String(format: "%d steps: median %.0f ms, mean %.0f ms, worst %.0f ms of main-thread time each",
+                             costs.count, sorted[sorted.count / 2], costs.reduce(0, +) / Double(costs.count), sorted.last ?? 0))
+                exit(0)
+            }
+            let start = cpuSeconds()
+            // Six forward, four back, so the steps stay inside a short list too.
+            AppModel.shared.move(n % 10 < 6 ? 1 : -1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { step(n + 1, since: start) }
+        }
+        step(0, since: cpuSeconds())
     }
 }
 

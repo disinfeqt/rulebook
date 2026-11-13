@@ -90,8 +90,9 @@ struct WelcomeView: View {
 
 // MARK: Sidebar
 
-/// The sidebar reads like a contents page: the places are names without icons, what belongs to one is set in
-/// under it, and anything to act on, with the counts, is in a column at the trailing edge.
+/// The sidebar is one row per place, and a switch at its top says what a place shows: its instruction files or
+/// its skills. It reads like a contents page: names without icons, and anything to act on, with the counts, in a
+/// column at the trailing edge.
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
     /// How far a row is set in under the one it belongs to.
@@ -100,48 +101,20 @@ struct SidebarView: View {
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selection) {
-            // What's in every place, by kind.
-            // These three lists are the only rows with a symbol. On every project and file it said nothing.
-            Section {
-                Label("Rules", systemImage: "list.bullet")
-                    .tag(SidebarItem.overview)
-                // A second way to look at the rules, so it sits under them.
-                Label("Repeated Rules", systemImage: "square.on.square")
-                    .padding(.leading, inset)
-                    .tag(SidebarItem.repeatedRules)
-                    .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
-                Label("Skills", systemImage: "puzzlepiece.extension")
-                    .tag(SidebarItem.skills)
-                    .help("The skills in your projects and your home folder, and which agents load each one.")
-            }
-            // Then each place with what it holds: its instruction files, and a row for its skills.
-            let places = model.sidebarPlaces
-            ForEach(places.filter(\.isGlobal)) { place in
-                Section(place.name) {
-                    files(place, naming: .file)
-                    skills(place)
-                }
-            }
-            if places.contains(where: { !$0.isGlobal }) {
-                Section("Projects") {
-                    ForEach(places.filter { !$0.isGlobal }) { place in
-                        if place.fileCount == 1, place.project != nil {
-                            // A project with one file is that file, under the project's name.
-                            files(place, naming: .project)
-                        } else {
-                            // One with several, or with skills alone, is a name over what it holds.
-                            Text(place.name).foregroundStyle(.secondary).selectionDisabled()
-                            files(place, naming: .file).padding(.leading, inset)
-                        }
-                        skills(place).padding(.leading, inset)
-                    }
-                }
-            }
+            if model.sidebarKind == .skills { skills } else { rules }
         }
         .listStyle(.sidebar)
+        // Names without icons need less room than the system's sidebar rows give them. The rows keep the
+        // text size of the medium ones.
+        .environment(\.sidebarRowSize, .small)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            KindSwitch(kind: $model.sidebarKind, labels: [L("Rules"), L("Skills")])
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+        }
         .searchable(text: $model.searchText, placement: .sidebar)
         .overlay {
-            if model.scan != nil, model.sidebarPlaces.isEmpty {
+            if model.scan != nil, model.sidebarKind == .skills ? model.skillPlaces.isEmpty : model.visibleProjects.isEmpty {
                 if !model.searchText.isEmpty {
                     ContentUnavailableView.search(text: model.searchText)
                 } else if model.attentionOnly {
@@ -151,8 +124,40 @@ struct SidebarView: View {
         }
     }
 
-    private func files(_ place: SidebarPlace, naming: DocRow.Naming) -> some View {
-        ForEach(place.project?.docIDs ?? [], id: \.self) { id in
+    // MARK: Rules
+
+    /// Every instruction file by place. A project with one file is one row, named for the project.
+    @ViewBuilder private var rules: some View {
+        Section {
+            Text("All Projects")
+                .font(.body)
+                .tag(SidebarItem.overview)
+            Text("Repeated Rules")
+                .font(.body)
+                .tag(SidebarItem.repeatedRules)
+                .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
+        }
+        let projects = model.visibleProjects
+        let several = Set((model.scan?.projects ?? []).filter { $0.docIDs.count > 1 }.map(\.id))
+        ForEach(projects.filter(\.isGlobal)) { project in
+            Section(project.name) { files(project, naming: .file) }
+        }
+        if projects.contains(where: { !$0.isGlobal }) {
+            Section("Projects") {
+                ForEach(projects.filter { !$0.isGlobal }) { project in
+                    if several.contains(project.id) {
+                        Text(project.name).font(.body).foregroundStyle(.secondary).selectionDisabled()
+                        files(project, naming: .file).padding(.leading, inset)
+                    } else {
+                        files(project, naming: .project)
+                    }
+                }
+            }
+        }
+    }
+
+    private func files(_ project: Project, naming: DocRow.Naming) -> some View {
+        ForEach(project.docIDs, id: \.self) { id in
             if let doc = model.doc(id) {
                 DocRow(doc: doc, naming: naming).tag(SidebarItem.doc(id))
                     .contextMenu { DocMenu(doc: doc) }
@@ -160,21 +165,85 @@ struct SidebarView: View {
         }
     }
 
-    /// A place's skills as one row with their count: there can be dozens, so they open as a list.
-    @ViewBuilder private func skills(_ place: SidebarPlace) -> some View {
-        if let count = place.skills {
-            HStack(spacing: 6) {
-                Text("Skills")
-                Spacer(minLength: 4)
-                if place.skillsNeedAttention { SidebarMark(severity: .warning) }
-                if count > 0 {
-                    Text(verbatim: count.formatted())
-                        .font(.callout)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+    // MARK: Skills
+
+    /// The places that have skills, each with its count. A click opens that place's skills.
+    @ViewBuilder private var skills: some View {
+        let places = model.skillPlaces
+        Section {
+            SkillPlaceRow(name: L("All Projects"), count: places.reduce(0) { $0 + $1.count },
+                          needsAttention: places.contains(where: \.needsAttention))
+                .tag(SidebarItem.skills)
+                .help("The skills in your projects and your home folder, and which agents load each one.")
+            ForEach(places.filter(\.isGlobal)) { place in
+                SkillPlaceRow(name: place.name, count: place.count, needsAttention: place.needsAttention)
+                    .tag(SidebarItem.skillsIn(place.id))
+            }
+        }
+        if places.contains(where: { !$0.isGlobal }) {
+            Section("Projects") {
+                ForEach(places.filter { !$0.isGlobal }) { place in
+                    SkillPlaceRow(name: place.name, count: place.count, needsAttention: place.needsAttention)
+                        .tag(SidebarItem.skillsIn(place.id))
                 }
             }
-            .tag(SidebarItem.skillsIn(place.id))
+        }
+    }
+}
+
+/// The switch at the top of the sidebar: the system's segmented control, with its two halves as wide as the
+/// sidebar. A SwiftUI picker in that style stays as narrow as its labels.
+struct KindSwitch: NSViewRepresentable {
+    @Binding var kind: SidebarKind
+    let labels: [String]
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl(labels: labels, trackingMode: .selectOne,
+                                         target: context.coordinator, action: #selector(Coordinator.changed(_:)))
+        control.segmentDistribution = .fillEqually
+        control.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return control
+    }
+
+    func updateNSView(_ control: NSSegmentedControl, context: Context) {
+        context.coordinator.parent = self
+        control.selectedSegment = kind == .rules ? 0 : 1
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSSegmentedControl, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? nsView.fittingSize.width, height: nsView.fittingSize.height)
+    }
+
+    final class Coordinator: NSObject {
+        var parent: KindSwitch
+        init(_ parent: KindSwitch) { self.parent = parent }
+
+        @MainActor @objc func changed(_ sender: NSSegmentedControl) {
+            parent.kind = sender.selectedSegment == 0 ? .rules : .skills
+        }
+    }
+}
+
+/// A place on the Skills side of the sidebar: its name, a sign that one of its skills needs fixing, and how many
+/// it has.
+struct SkillPlaceRow: View {
+    let name: String
+    let count: Int
+    let needsAttention: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(name).font(.body).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 4)
+            if needsAttention { SidebarMark(severity: .warning) }
+            if count > 0 {
+                Text(verbatim: count.formatted())
+                    .font(.callout)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -201,7 +270,7 @@ struct DocRow: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(naming == .file ? doc.title : doc.projectName).lineLimit(1).truncationMode(.middle)
+            Text(naming == .file ? doc.title : doc.projectName).font(.body).lineLimit(1).truncationMode(.middle)
             if model.isDirty(doc.id) {
                 Circle().fill(.secondary).frame(width: 6, height: 6)
                     .help("Unsaved changes")

@@ -128,11 +128,15 @@ struct RulebookCommands: Commands {
             Toggle("Only Files That Need Attention", isOn: Binding(get: { model.attentionOnly }, set: { model.attentionOnly = $0 }))
         }
         CommandMenu("Go") {
-            Button("Rules") { model.selection = .overview }
+            // The sidebar's switch, which stays in the same project where it can.
+            Button("Rules") { model.sidebarKind = .rules }
+                .keyboardShortcut("1")
+            Button("Skills") { model.sidebarKind = .skills }
+                .keyboardShortcut("2")
+            Divider()
+            Button("All Projects") { model.selection = model.sidebarKind == .skills ? .skills : .overview }
                 .keyboardShortcut("0")
             Button("Repeated Rules") { model.selection = .repeatedRules }
-            Divider()
-            Button("Skills") { model.selection = .skills }
             Divider()
             Button("Previous File") { model.move(-1) }
                 .keyboardShortcut(.upArrow, modifiers: [.command, .option])

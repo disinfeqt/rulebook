@@ -84,7 +84,7 @@ struct SkillsView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Skills")
+        .navigationTitle(title)
         .navigationSubtitle(subtitle)
         .onChange(of: scope) {
             selection = []
@@ -96,15 +96,19 @@ struct SkillsView: View {
         scope == nil ? scan.skills : scan.skills.filter { $0.projectID == scope }
     }
 
-    /// Where the skills are: the scanned folder, or the one place.
+    /// The page is called Skills, or for one place, by the place.
+    private var title: String {
+        guard scope != nil, let scan = model.scan, let name = entries(scan).first?.projectName else { return L("Skills") }
+        return name
+    }
+
+    /// For every skill, the scanned folder. Then how many need attention, which is all there is to say of one place.
     private var subtitle: String {
         guard let scan = model.scan else { return model.rootPath?.tildePath ?? "" }
-        let entries = entries(scan)
-        let place = scope == nil ? scan.root.path.tildePath : (entries.first?.projectName ?? "")
-        let attention = entries.filter { entry in
-            entry.needsAttention
-        }.count
-        return attention == 0 ? place : place + " — " + LN(attention, "%d skill needs attention", "%d skills need attention")
+        let attention = entries(scan).filter(\.needsAttention).count
+        let needs = attention == 0 ? "" : LN(attention, "%d skill needs attention", "%d skills need attention")
+        guard scope == nil else { return needs }
+        return needs.isEmpty ? scan.root.path.tildePath : scan.root.path.tildePath + " — " + needs
     }
 
     /// Whether the list is narrowed by the sidebar's search field or the attention filter.

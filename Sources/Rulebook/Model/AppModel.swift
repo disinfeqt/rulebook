@@ -11,18 +11,18 @@ enum SidebarItem: Hashable {
     case doc(String)
 }
 
-/// A row or group of the sidebar: the home folder or a project, with what it holds after the search field and the
-/// attention filter are applied.
-struct SidebarPlace: Identifiable {
+/// What the sidebar lists: instruction files, or skills. The switch at its top chooses.
+enum SidebarKind: Hashable {
+    case rules, skills
+}
+
+/// A place that has skills, for the sidebar: the home folder or a project, with how many pass the search field
+/// and the attention filter.
+struct SkillPlace: Identifiable {
     let id: String
     let name: String
-    /// Its instruction files. Nil when it has none to show.
-    var project: Project?
-    /// How many skills its Skills row counts. Nil when it gets no such row.
-    var skills: Int?
-    var skillsNeedAttention = false
-    /// How many instruction files it has before any filter. With exactly one, the place's row is that file.
-    var fileCount = 0
+    var count = 0
+    var needsAttention = false
 
     var isGlobal: Bool { id == "global" }
 }
@@ -269,43 +269,36 @@ final class AppModel {
         return query.isEmpty || [entry.name, entry.projectName, entry.description, entry.source].contains { $0.lowercased().contains(query) }
     }
 
-    /// The home folder and the projects, each with its instruction files and a count of its skills.
-    var sidebarPlaces: [SidebarPlace] {
+    /// The home folder and the projects that have skills, the home folder first.
+    var skillPlaces: [SkillPlace] {
         guard let scan else { return [] }
-        let filtered = attentionOnly || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
-        struct Tally { var name = ""; var count = 0; var attention = false }
-        var tallies: [String: Tally] = [:]
-        for entry in scan.skills {
-            // An empty folder alone isn't worth a row in the sidebar. It's in the list of all skills.
-            guard entry.docID != nil || entry.needsAttention else { continue }
-            var tally = tallies[entry.projectID] ?? Tally(name: entry.projectName)
-            if !filtered || isVisible(entry) {
-                if entry.docID != nil { tally.count += 1 }
-                tally.attention = tally.attention || entry.needsAttention
-            }
-            tallies[entry.projectID] = tally
+        var places: [String: SkillPlace] = [:]
+        // An empty folder alone doesn't make a place. It's in the list of all skills.
+        for entry in scan.skills where (entry.docID != nil || entry.needsAttention) && isVisible(entry) {
+            var place = places[entry.projectID] ?? SkillPlace(id: entry.projectID, name: entry.projectName)
+            if entry.docID != nil { place.count += 1 }
+            place.needsAttention = place.needsAttention || entry.needsAttention
+            places[entry.projectID] = place
         }
-        func skills(_ id: String) -> (Int?, Bool) {
-            guard let tally = tallies[id], !filtered || tally.count > 0 || tally.attention else { return (nil, false) }
-            return (tally.count, tally.attention)
-        }
-        var places: [SidebarPlace] = []
-        var seen = Set<String>()
-        for project in visibleProjects {
-            let (count, attention) = skills(project.id)
-            let files = scan.projects.first { $0.id == project.id }?.docIDs.count ?? 0
-            places.append(SidebarPlace(id: project.id, name: project.name, project: project, skills: count,
-                                       skillsNeedAttention: attention, fileCount: files))
-            seen.insert(project.id)
-        }
-        for (id, tally) in tallies where !seen.contains(id) {
-            let (count, attention) = skills(id)
-            guard count != nil else { continue }
-            places.append(SidebarPlace(id: id, name: tally.name, skills: count, skillsNeedAttention: attention,
-                                       fileCount: scan.projects.first { $0.id == id }?.docIDs.count ?? 0))
-        }
-        return places.sorted {
+        return places.values.sorted {
             $0.isGlobal != $1.isGlobal ? $0.isGlobal : $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+
+    /// Which kind the sidebar lists. It follows what's selected, so opening a skill from anywhere shows the
+    /// skills, and choosing the other kind stays in the same project where it can.
+    var sidebarKind: SidebarKind {
+        get { showsSkills ? .skills : .rules }
+        set {
+            guard newValue != sidebarKind else { return }
+            switch newValue {
+            case .skills:
+                let place = currentDoc?.projectID
+                selection = place.flatMap { id in scan?.skills.contains { $0.projectID == id } == true ? .skillsIn(id) : nil } ?? .skills
+            case .rules:
+                let file = skillsPlace.flatMap { place in scan?.projects.first { $0.id == place }?.docIDs.first }
+                selection = file.map { .doc($0) } ?? .overview
+            }
         }
     }
 

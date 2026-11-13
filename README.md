@@ -6,7 +6,7 @@
 
 A native macOS app for the agent instruction files across your projects. Point it at the folder that holds your projects and it finds every `CLAUDE.md`, `AGENTS.md` and `CLAUDE.local.md`, works out how they relate, and lets you edit, compare, merge and audit them in one place.
 
-![Overview: every instruction file in a projects folder, with the ones that need attention first](docs/screenshots/overview.png)
+![Overview: every instruction file in a projects folder, with the ones that need attention first](docs/screenshots/overview.webp)
 
 The interface comes in English and Simplified Chinese (简体中文). It follows the system language, or the one you pick in Settings, and audits are written in the same language.
 
@@ -22,19 +22,19 @@ The interface comes in English and Simplified Chinese (简体中文). It follows
 
 It also flags broken `@imports`, stray `@mentions` that Claude Code would try to import, tool-written blocks (such as `convex-ai` or `nextjs-agent-rules`) that are loaded twice or differ between projects, files over 200 lines, and titles left over from copied files. Most issues come with a one-click fix.
 
-![Editing a diverged CLAUDE.md. The inspector shows who reads the file and what's wrong with it](docs/screenshots/editor.png)
+![Editing a diverged CLAUDE.md. The inspector shows who reads the file and what's wrong with it](docs/screenshots/editor.webp)
 
 ## Compare and merge
 
 When `CLAUDE.md` and `AGENTS.md` have drifted apart, Compare shows them side by side. Merge asks your agent to combine them into one `AGENTS.md` and a `CLAUDE.md` that imports it plus any Claude-only rules. You review the result before anything is saved.
 
-![Side-by-side comparison of AGENTS.md and CLAUDE.md](docs/screenshots/compare.png)
+![Side-by-side comparison of AGENTS.md and CLAUDE.md](docs/screenshots/compare.webp)
 
 ## Audits
 
 Audit (⇧⌘A) checks a file against its project: instructions written for older models, references to files and commands that don't exist, and rules that contradict each other. You get a verdict, findings that jump to the text they're about, and suggested edits as a diff. Audit All (⌥⇧⌘A) works through every file that is new or has changed, and "Audit files again when they change" in Settings keeps results current.
 
-![An audit in the inspector: a verdict and findings](docs/screenshots/audit.png)
+![An audit in the inspector: a verdict and findings](docs/screenshots/audit.webp)
 
 Audits and merges run through an agent CLI you already have, with its existing login:
 

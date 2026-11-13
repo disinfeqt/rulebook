@@ -197,7 +197,8 @@ enum Scanner {
 
         return ScanResult(root: root, date: Date(), projects: projects, docs: docs, fileCount: fileCount,
                           foldersVisited: collected.dirs, missing: missing,
-                          blockGroups: groups, duration: Date().timeIntervalSince(start))
+                          blockGroups: groups, repeatedRules: RepeatedRules.find(in: Array(docs.values)),
+                          duration: Date().timeIntervalSince(start))
     }
 
     static func blockGroups(_ docs: [String: Doc]) -> [ManagedBlockGroup] {

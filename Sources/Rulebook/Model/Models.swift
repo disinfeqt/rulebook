@@ -160,5 +160,7 @@ struct ScanResult: Sendable {
     let foldersVisited: Int
     let missing: [URL]
     let blockGroups: [ManagedBlockGroup]
+    /// Rules found in more than one project, from the saved files.
+    let repeatedRules: [RepeatedRule]
     let duration: TimeInterval
 }

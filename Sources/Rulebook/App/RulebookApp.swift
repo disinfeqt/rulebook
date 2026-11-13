@@ -130,6 +130,7 @@ struct RulebookCommands: Commands {
         CommandMenu("Go") {
             Button("Overview") { model.selection = .overview }
                 .keyboardShortcut("0")
+            Button("Repeated Rules") { model.selection = .repeatedRules }
             Divider()
             Button("Previous File") { model.move(-1) }
                 .keyboardShortcut(.upArrow, modifiers: [.command, .option])

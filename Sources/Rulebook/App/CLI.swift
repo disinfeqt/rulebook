@@ -84,6 +84,11 @@ enum CLI {
         for g in r.blockGroups {
             print("   \(g.name): \(g.total) copies, \(g.variants.count) variant(s) — \(g.variants.map { $0.paths.count })")
         }
+        print("\nRepeated rules:")
+        for rule in r.repeatedRules {
+            print("   \(rule.projectCount) projects, \(rule.wordings) wording(s): \(rule.text)")
+            for o in rule.occurrences { print("      \(o.project)/\(o.file):\(o.line)  \(o.text)") }
+        }
         print("\nNo instructions: \(r.missing.map(\.lastPathComponent).joined(separator: ", "))")
     }
 }

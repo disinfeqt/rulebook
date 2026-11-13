@@ -33,6 +33,43 @@ extension PairStatus {
     }
 }
 
+extension Doc {
+    /// Who reads this file, in a word or two.
+    var readBy: String {
+        if role == .global { return primary.kind == .claude ? "Claude Code" : "Codex" }
+        switch (readers.claude.reads, readers.others.reads) {
+        case (true, true): return L("All agents")
+        case (true, false): return "Claude Code"
+        case (false, true): return L("Other agents")
+        case (false, false): return L("No agent")
+        }
+    }
+
+    /// 3 when every agent reads the file, 2 for Claude Code alone, 1 for the others alone, 0 for none.
+    var readByRank: Int { (readers.claude.reads ? 2 : 0) + (readers.others.reads ? 1 : 0) }
+}
+
+extension Date {
+    /// A date the way Finder lists it: "Today at 11:52 PM", "Yesterday at 9:05 AM", "Oct 23", or with the
+    /// year when it isn't this one.
+    var listStyle: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(self) || calendar.isDateInYesterday(self) { return Self.relative.string(from: self) }
+        if calendar.isDate(self, equalTo: .now, toGranularity: .year) {
+            return formatted(.dateTime.month(.abbreviated).day())
+        }
+        return formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private static let relative: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        formatter.doesRelativeDateFormatting = true
+        return formatter
+    }()
+}
+
 extension Severity {
     var icon: String {
         switch self {

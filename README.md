@@ -30,6 +30,10 @@ When `CLAUDE.md` and `AGENTS.md` have drifted apart, Compare shows them side by 
 
 ![Side-by-side comparison of AGENTS.md and CLAUDE.md](docs/screenshots/compare.webp)
 
+## Repeated rules
+
+Repeated Rules lists the rules written into more than one project, such as "Always use pnpm" in seven `AGENTS.md` files. Rules that say the same thing in different words are grouped together, and each copy opens at its line. A rule you want everywhere could live in `~/.claude/CLAUDE.md` or `~/.codex/AGENTS.md` instead.
+
 ## Audits
 
 Audit (⇧⌘A) checks a file against its project: instructions written for older models, references to files and commands that don't exist, and rules that contradict each other. You get a verdict, findings that jump to the text they're about, and suggested edits as a diff. Audit All (⌥⇧⌘A) works through every file that is new or has changed, and "Audit files again when they change" in Settings keeps results current.

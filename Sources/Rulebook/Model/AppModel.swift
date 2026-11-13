@@ -4,6 +4,7 @@ import SwiftUI
 
 enum SidebarItem: Hashable {
     case overview
+    case repeatedRules
     case doc(String)
 }
 
@@ -100,6 +101,8 @@ final class AppModel {
     var reconcileReview: ReconcileReview?
     var alert: AlertInfo?
     var focusEditorOnAppear = false
+    /// A line for the next file that opens to scroll to.
+    @ObservationIgnored var revealLineOnAppear: Int?
     /// Agent CLIs found on this Mac.
     var detected: [Engine: URL] = [:]
     /// How Claude Code audits are paid for, from `claude auth status`.
@@ -209,6 +212,12 @@ final class AppModel {
     func select(_ id: String, focusEditor: Bool = false) {
         focusEditorOnAppear = focusEditor
         selection = .doc(id)
+    }
+
+    /// Opens a file with its editor scrolled to `line` and the line selected.
+    func open(_ id: String, line: Int) {
+        revealLineOnAppear = line
+        select(id, focusEditor: true)
     }
 
     func move(_ delta: Int) {

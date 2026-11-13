@@ -7,9 +7,6 @@
 "Check for Updates…" = "检查更新…";
 "Check for updates automatically" = "自动检查更新";
 "Projects" = "项目";
-"File" = "文件";
-"Status" = "状态";
-"Lines" = "行数";
 "Modified" = "修改日期";
 "Audit" = "审查";
 "Open" = "打开";
@@ -37,9 +34,6 @@
 "Stop Audits" = "停止审查";
 "Compare AGENTS.md and CLAUDE.md" = "对比 AGENTS.md 和 CLAUDE.md";
 "Merge AGENTS.md and CLAUDE.md…" = "合并 AGENTS.md 和 CLAUDE.md…";
-"New AGENTS.md" = "新建 AGENTS.md";
-"Create AGENTS.md In" = "在以下项目中创建 AGENTS.md";
-"Create an AGENTS.md in a repository that has no instruction files" = "为还没有指令文件的仓库创建 AGENTS.md";
 "Audit every file that is new or has changed since its last audit" = "审查所有尚未审查或上次审查后有改动的文件";
 "Check this file against its project for outdated or conflicting instructions" = "对照项目检查这个文件里过时或互相矛盾的指令";
 "%d file needs attention" = "%d 个文件需要处理";
@@ -251,3 +245,27 @@
 "Audit files again when they change" = "文件改动后自动重新审查";
 "Audits at once" = "同时进行的审查数";
 "The agent runs with your existing login. It reads your projects and can't change them." = "智能体使用你已有的登录运行，只读取项目内容，无法修改。";
+
+"Repeated Rules" = "重复的规则";
+"Rules written into more than one project. One you want everywhere could live in a global file instead." = "写在多个项目里的规则。想让每个项目都遵守的规则，可以改放到全局文件里。";
+"%@: %@" = "%@：%@";
+"%d file" = "%d 个文件";
+"%d files" = "%d 个文件";
+"≈%@ tokens" = "约 %@ 个 token";
+"%d repository without instructions" = "%d 个仓库没有指令文件";
+"%d repositories without instructions" = "%d 个仓库没有指令文件";
+"No instruction file" = "没有指令文件";
+"Issue" = "问题";
+"Tokens" = "Token";
+"Create AGENTS.md…" = "创建 AGENTS.md…";
+"All agents" = "所有智能体";
+"Other agents" = "其他智能体";
+"No agent" = "没有智能体";
+"%d rule appears in more than one project" = "%d 条规则出现在多个项目里";
+"%d rules appear in more than one project" = "%d 条规则出现在多个项目里";
+"%d project" = "%d 个项目";
+"%d projects" = "%d 个项目";
+"No Repeated Rules" = "没有重复的规则";
+"No rule appears in more than one project." = "没有规则出现在多个项目里。";
+"Rule" = "规则";
+"Copy Rule" = "拷贝规则";

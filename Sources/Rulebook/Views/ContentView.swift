@@ -18,6 +18,8 @@ struct ContentView: View {
                 } else {
                     ContentUnavailableView("File Not Found", systemImage: "doc.questionmark")
                 }
+            } else if model.selection == .repeatedRules {
+                RepeatedRulesView()
             } else {
                 OverviewView()
             }
@@ -75,6 +77,9 @@ struct SidebarView: View {
             Section {
                 Label("Overview", systemImage: "square.grid.2x2")
                     .tag(SidebarItem.overview)
+                Label("Repeated Rules", systemImage: "square.on.square")
+                    .tag(SidebarItem.repeatedRules)
+                    .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
             }
             // A project with one file is one row, named for the project. One with several is its name with its files under it.
             let projects = model.visibleProjects
@@ -250,9 +255,13 @@ struct DocDetailView: View {
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
         }
         .onAppear {
-            if model.focusEditorOnAppear {
+            let line = model.revealLineOnAppear
+            model.revealLineOnAppear = nil
+            if model.focusEditorOnAppear || line != nil {
                 model.focusEditorOnAppear = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { editor.focus() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    if let line { editor.reveal(line: line) } else { editor.focus() }
+                }
             }
         }
     }

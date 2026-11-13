@@ -205,6 +205,12 @@ enum Scanner {
             let sibling = d.siblingID.flatMap { docs[$0]?.primary.content }
             let insights = ContentInsights.compute(text: d.primary.content, doc: d, siblingText: sibling)
             docs[id]?.savedIssues = (d.staticIssues + insights.issues).sorted { $0.severity > $1.severity }
+            docs[id]?.savedStats = insights.stats
+        }
+        let entries = skills.entries.map { entry in
+            var entry = entry
+            entry.needsAttention = entry.docID.flatMap { docs[$0] }?.needsAttention ?? ((entry.issue?.severity ?? .info) >= .warning)
+            return entry
         }
 
         let covered = Set(projects.map(\.id))
@@ -215,7 +221,7 @@ enum Scanner {
 
         return ScanResult(root: root, date: Date(), projects: projects, docs: docs, fileCount: fileCount,
                           foldersVisited: collected.dirs, missing: missing,
-                          blockGroups: groups, repeatedRules: repeated, skills: skills.entries,
+                          blockGroups: groups, repeatedRules: repeated, skills: entries,
                           duration: Date().timeIntervalSince(start))
     }
 

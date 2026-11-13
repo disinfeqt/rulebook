@@ -110,7 +110,7 @@ final class AppModel {
     var isScanning = false
     var selection: SidebarItem? = .overview {
         // A skill is open on top of one list of skills. Another list, or another page, starts without it.
-        didSet { if selection != oldValue { skillPath = [] } }
+        didSet { if selection != oldValue, !skillPath.isEmpty { skillPath = [] } }
     }
     /// The skill open on top of the Skills list, as the one element of its navigation path.
     var skillPath: [String] = []
@@ -191,6 +191,12 @@ final class AppModel {
         return nil
     }
 
+    /// The place whose skills are listed: a project's path or "global". Nil for every skill, and for other pages.
+    var skillsPlace: String? {
+        if case .skillsIn(let place) = selection { return place }
+        return nil
+    }
+
     /// Whether the detail is a list of skills, of everything or of one place.
     var showsSkills: Bool {
         if case .skillsIn = selection { return true }
@@ -205,6 +211,9 @@ final class AppModel {
     }
 
     func isDirty(_ id: String) -> Bool { drafts[id] != nil }
+
+    /// Lines and tokens of a file as it is in the editor. Only a file with unsaved changes is counted again.
+    func stats(for doc: Doc) -> TextStats { drafts[doc.id].map(MarkdownScan.stats) ?? doc.savedStats }
 
     func sibling(of doc: Doc) -> Doc? { doc.siblingID.flatMap { self.doc($0) } }
 
@@ -255,11 +264,7 @@ final class AppModel {
 
     /// Whether a skill passes the sidebar's search field and the attention filter.
     func isVisible(_ entry: SkillEntry) -> Bool {
-        let doc = entry.docID.flatMap(doc)
-        if attentionOnly {
-            let severity = (doc == nil ? entry.issue : doc?.topIssue)?.severity ?? .info
-            if severity < .warning, !(doc.map { isDirty($0.id) } ?? false) { return false }
-        }
+        if attentionOnly, !entry.needsAttention, !(entry.docID.map(isDirty) ?? false) { return false }
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         return query.isEmpty || [entry.name, entry.projectName, entry.description, entry.source].contains { $0.lowercased().contains(query) }
     }
@@ -271,15 +276,13 @@ final class AppModel {
         struct Tally { var name = ""; var listed = false; var count = 0; var attention = false }
         var tallies: [String: Tally] = [:]
         for entry in scan.skills {
-            let doc = entry.docID.flatMap { scan.docs[$0] }
-            let urgent = ((doc == nil ? entry.issue : doc?.topIssue)?.severity ?? .info) >= .warning
             // An empty folder alone isn't worth a row in the sidebar. It's in the list of all skills.
-            guard doc != nil || urgent else { continue }
+            guard entry.docID != nil || entry.needsAttention else { continue }
             var tally = tallies[entry.projectID] ?? Tally(name: entry.projectName)
             tally.listed = true
             if !filtered || isVisible(entry) {
-                if doc != nil { tally.count += 1 }
-                tally.attention = tally.attention || urgent
+                if entry.docID != nil { tally.count += 1 }
+                tally.attention = tally.attention || entry.needsAttention
             }
             tallies[entry.projectID] = tally
         }
@@ -354,7 +357,9 @@ final class AppModel {
 
     private func finishScan(_ result: ScanResult) {
         let previous = scan
-        scan = result
+        // Coming back to the app starts a scan. When it finds what the last one found, nothing is replaced, so
+        // no list or table is drawn again.
+        if previous?.sameContent(as: result) != true { scan = result }
         isScanning = false
         for (id, text) in drafts {
             if let d = result.docs[id], d.primary.content == text { drafts[id] = nil }
@@ -415,6 +420,7 @@ final class AppModel {
         }
         drafts[id] = nil
         if var d = scan?.docs[id] {
+            d.savedStats = MarkdownScan.stats(text)
             d.primary.content = text
             d.mirrors = d.mirrors.map { var m = $0; m.content = text; return m }
             scan?.docs[id] = d

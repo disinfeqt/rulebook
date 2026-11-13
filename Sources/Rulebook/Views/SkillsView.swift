@@ -41,8 +41,14 @@ struct SkillsView: View {
     /// The place whose skills to list: a project's path or "global". Nil for all of them.
     var scope: String? = nil
     @Environment(AppModel.self) private var model
-    /// The Project column is left out for one place, which the sidebar already names.
-    @State private var columns = TableColumnCustomization<SkillRow>()
+    /// The columns of the list of every skill, and of one place's list, which leaves out the Project column:
+    /// the sidebar already names the place.
+    @State private var allColumns = TableColumnCustomization<SkillRow>()
+    @State private var placeColumns: TableColumnCustomization<SkillRow> = {
+        var columns = TableColumnCustomization<SkillRow>()
+        columns[visibility: "project"] = .hidden
+        return columns
+    }()
     @State private var selection: Set<String> = []
     @State private var sortOrder = [KeyPathComparator(\SkillRow.urgency, order: .reverse),
                                     KeyPathComparator(\SkillRow.name)]
@@ -80,7 +86,10 @@ struct SkillsView: View {
         }
         .navigationTitle("Skills")
         .navigationSubtitle(subtitle)
-        .onAppear { columns[visibility: "project"] = scope == nil ? .automatic : .hidden }
+        .onChange(of: scope) {
+            selection = []
+            toggled = []
+        }
     }
 
     private func entries(_ scan: ScanResult) -> [SkillEntry] {
@@ -93,7 +102,7 @@ struct SkillsView: View {
         let entries = entries(scan)
         let place = scope == nil ? scan.root.path.tildePath : (entries.first?.projectName ?? "")
         let attention = entries.filter { entry in
-            entry.docID.flatMap { scan.docs[$0] }?.needsAttention ?? ((entry.issue?.severity ?? .info) >= .warning)
+            entry.needsAttention
         }.count
         return attention == 0 ? place : place + " — " + LN(attention, "%d skill needs attention", "%d skills need attention")
     }
@@ -114,7 +123,7 @@ struct SkillsView: View {
                 source: entry.source, description: entry.description, issue: issue,
                 readBy: doc?.readBy ?? "", readByRank: doc?.readByRank ?? -1,
                 listed: doc == nil ? 0 : SkillScan.listingTokens(name: entry.name, description: entry.description),
-                tokens: MarkdownScan.stats(doc.map(model.text(for:)) ?? "").tokens,
+                tokens: doc.map(model.stats(for:))?.tokens ?? 0,
                 urgency: issue.map { $0.severity >= .warning ? $0.severity.rawValue + 1 : 0 } ?? 0,
                 modified: doc?.primary.modified ?? .distantPast)
         }
@@ -153,7 +162,8 @@ struct SkillsView: View {
             byID[row.id] = row
             for child in row.children { byID[child.id] = child }
         }
-        return Table(of: SkillRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
+        return Table(of: SkillRow.self, selection: $selection, sortOrder: $sortOrder,
+                     columnCustomization: scope == nil ? $allColumns : $placeColumns) {
             TableColumn("Skill", value: \.name) { row in
                 HStack(spacing: 6) {
                     if row.isGroup {
@@ -242,6 +252,9 @@ struct SkillsView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
+        // One table serves every place's list, so going from one project's skills to the next reuses its rows.
+        // The list of every skill has a column more, and a table doesn't fit its columns again when one appears.
+        .id(scope == nil)
         .contextMenu(forSelectionType: String.self) { ids in
             if let row = ids.first.flatMap({ byID[$0] }) {
                 if row.isGroup {

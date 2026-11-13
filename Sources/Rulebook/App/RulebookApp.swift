@@ -131,6 +131,7 @@ struct RulebookCommands: Commands {
             Button("Rules") { model.selection = .overview }
                 .keyboardShortcut("0")
             Button("Repeated Rules") { model.selection = .repeatedRules }
+            Divider()
             Button("Skills") { model.selection = .skills }
             Divider()
             Button("Previous File") { model.move(-1) }

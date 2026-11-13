@@ -135,6 +135,8 @@ struct Doc: Identifiable, Hashable, Sendable {
     var savedIssues: [Issue] = []
     /// Set when this is the SKILL.md of a skill, not an instruction file.
     var skill: SkillInfo? = nil
+    /// Lines and tokens of the saved text, counted once per scan.
+    var savedStats = TextStats()
 
     var allFiles: [InstructionFile] { [primary] + mirrors }
     var savedLevel: Severity? { savedIssues.map(\.severity).max() }
@@ -182,4 +184,10 @@ struct ScanResult: Sendable {
     /// Every skill in the projects and the home folder. Their SKILL.md files are in `docs`, but not in `projects`.
     var skills: [SkillEntry] = []
     let duration: TimeInterval
+
+    /// Whether another scan found the same things, so nothing on screen needs to change.
+    func sameContent(as other: ScanResult) -> Bool {
+        root == other.root && projects == other.projects && skills == other.skills && missing == other.missing
+            && repeatedRules == other.repeatedRules && docs == other.docs
+    }
 }

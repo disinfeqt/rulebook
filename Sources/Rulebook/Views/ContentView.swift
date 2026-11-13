@@ -14,16 +14,14 @@ struct ContentView: View {
                 WelcomeView()
             } else if case .doc(let id)? = model.selection {
                 if let doc = model.doc(id) {
-                    DocDetailView(doc: doc).id(id)
+                    DocDetailView(doc: doc)
                 } else {
                     ContentUnavailableView("File Not Found", systemImage: "doc.questionmark")
                 }
             } else if model.selection == .repeatedRules {
                 RepeatedRulesView()
-            } else if model.selection == .skills {
-                skills(in: nil)
-            } else if case .skillsIn(let place)? = model.selection {
-                skills(in: place)
+            } else if model.showsSkills {
+                skills(in: model.skillsPlace)
             } else {
                 OverviewView()
             }
@@ -65,13 +63,12 @@ extension ContentView {
             SkillsView(scope: place)
                 .navigationDestination(for: String.self) { id in
                     if let doc = model.doc(id) {
-                        DocDetailView(doc: doc).id(id)
+                        DocDetailView(doc: doc)
                     } else {
                         ContentUnavailableView("File Not Found", systemImage: "doc.questionmark")
                     }
                 }
         }
-        .id(place ?? "")
     }
 }
 
@@ -103,12 +100,14 @@ struct SidebarView: View {
             Section {
                 Label("Rules", systemImage: "list.bullet")
                     .tag(SidebarItem.overview)
-                Label("Skills", systemImage: "puzzlepiece.extension")
-                    .tag(SidebarItem.skills)
-                    .help("The skills in your projects and your home folder, and which agents load each one.")
+                // A second way to look at the rules, so it sits under them.
                 Label("Repeated Rules", systemImage: "square.on.square")
                     .tag(SidebarItem.repeatedRules)
                     .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
+                    .padding(.leading, 18)
+                Label("Skills", systemImage: "puzzlepiece.extension")
+                    .tag(SidebarItem.skills)
+                    .help("The skills in your projects and your home folder, and which agents load each one.")
             }
             // Then each place with what it holds: its instruction files, and a row for its skills. A project with
             // one file and no skills is one row, named for the project.
@@ -266,6 +265,8 @@ struct ToolbarTitle: View {
 
 // MARK: Detail
 
+/// One file in the editor, with its inspector. The view stays when another file is chosen, so the toolbar and
+/// the inspector's column aren't built again for each one. Only the editor is, to keep each file's own undo.
 struct DocDetailView: View {
     let doc: Doc
     @Environment(AppModel.self) private var model
@@ -279,6 +280,7 @@ struct DocDetailView: View {
             MarkdownEditor(text: Binding(get: { model.text(for: doc) },
                                          set: { model.setText($0, for: doc.id) }),
                            baseDir: doc.primary.containingDir, isSkill: doc.skill != nil, controller: editor)
+                .id(doc.id)
             Divider()
             StatusBar(doc: doc, stats: insights.stats)
         }
@@ -297,9 +299,10 @@ struct DocDetailView: View {
         }
         .inspector(isPresented: $model.showInspector) {
             InspectorView(doc: doc, issues: issues, editor: editor)
+                .id(doc.id)
                 .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
         }
-        .onAppear {
+        .onChange(of: doc.id, initial: true) {
             let line = model.revealLineOnAppear
             model.revealLineOnAppear = nil
             if model.focusEditorOnAppear || line != nil {

@@ -57,6 +57,8 @@ struct SkillEntry: Identifiable, Hashable, Sendable {
     var issue: Issue? = nil
     /// The saved SKILL.md's description.
     var description = ""
+    /// Whether the saved skill has something to fix.
+    var needsAttention = false
     /// Where it was installed from: the repository `npx skills` got it from, or claude.ai for a skill synced
     /// from the account. Empty for a skill of the user's own.
     var source = ""
@@ -368,6 +370,14 @@ enum SkillScan {
         func rank(_ c: Copy) -> Int { ranking.firstIndex(of: c.home) ?? 0 }
         func show(_ url: URL) -> String { isGlobal ? url.path.tildePath : (Scanner.relative(url, to: base) ?? url.path.tildePath) }
         func folder(_ home: SkillHome) -> String { isGlobal ? "~/" + home.folder : home.folder }
+        // Each folder is listed once, however often it's asked about below.
+        var listings: [String: [SkillFile]] = [:]
+        func listing(_ dir: URL) -> [SkillFile] {
+            if let known = listings[dir.path] { return known }
+            let found = files(in: dir)
+            listings[dir.path] = found
+            return found
+        }
         let name = copies[0].name
         let live = copies.filter { $0.file != nil }.sorted { rank($0) < rank($1) }
         let dead = copies.filter { $0.file == nil }
@@ -453,7 +463,7 @@ enum SkillScan {
                     fixes: [.compare, .useSkillVersion]))
             } else if let copy = mirrors.first {
                 // By names and sizes here. The contents are compared before a copy is replaced.
-                identical = Set(variant.map { files(in: $0.primary.realDir) }).count == 1
+                identical = Set(variant.map { listing($0.primary.realDir) }).count == 1
                 role = .mirrored
                 status = .duplicated
                 issues.append(Issue(
@@ -495,7 +505,7 @@ enum SkillScan {
 
             let info = SkillInfo(name: name, dir: first.dir, home: first.home, homes: homes, isGlobal: isGlobal,
                                  isSynced: first.isSynced, copies: mirrors.map(\.dir), links: links.map(\.dir),
-                                 copiesIdentical: identical, files: files(in: first.realDir), source: source)
+                                 copiesIdentical: identical, files: listing(first.realDir), source: source)
             docs.append(Doc(id: first.file!.id, projectID: projectID, projectName: projectName, locationDir: base,
                             relativeDir: rel, primary: first.file!, mirrors: mirrors.compactMap(\.file),
                             linkedFrom: links.compactMap { c in c.file.map { LinkInfo(file: $0, viaSymlink: true) } },

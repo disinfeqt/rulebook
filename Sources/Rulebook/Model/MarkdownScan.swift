@@ -22,10 +22,8 @@ struct ManagedBlock: Hashable, Identifiable, Sendable {
 }
 
 struct TextStats: Hashable, Sendable {
-    let lines: Int
-    let words: Int
-    let characters: Int
-    let tokens: Int
+    var lines = 0
+    var tokens = 0
 }
 
 enum MarkdownScan {
@@ -183,15 +181,17 @@ enum MarkdownScan {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Lines and a rough token count, in one pass over the bytes: the tables ask for this for every file.
     static func stats(_ text: String) -> TextStats {
-        let lines: Int
-        if text.isEmpty { lines = 0 } else {
-            let parts = text.split(separator: "\n", omittingEmptySubsequences: false)
-            lines = parts.last?.isEmpty == true ? parts.count - 1 : parts.count
+        var bytes = 0, newlines = 0
+        var last: UInt8 = 0x0A
+        for byte in text.utf8 {
+            bytes += 1
+            if byte == 0x0A { newlines += 1 }
+            last = byte
         }
-        let words = text.split(whereSeparator: { $0.isWhitespace }).count
-        let tokens = Int((Double(text.utf8.count) / 3.7).rounded())
-        return TextStats(lines: lines, words: words, characters: text.count, tokens: tokens)
+        // A last line without a line feed after it is still a line.
+        return TextStats(lines: newlines + (last == 0x0A ? 0 : 1), tokens: Int((Double(bytes) / 3.7).rounded()))
     }
 
     static func lineNumber(at location: Int, in ns: NSString) -> Int {

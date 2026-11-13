@@ -81,7 +81,7 @@ struct OverviewView: View {
         for project in model.visibleProjects {
             let several = (scan.projects.first { $0.id == project.id }?.docIDs.count ?? 0) > 1
             for doc in project.docIDs.compactMap(model.doc) {
-                let stats = MarkdownScan.stats(model.text(for: doc))
+                let stats = model.stats(for: doc)
                 let audit = switch model.assessments[doc.id]?.grade {
                 case .serious: 3
                 case .minor: 2

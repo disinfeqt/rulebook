@@ -44,7 +44,13 @@ struct ReconcileResult: Hashable {
 enum AgentError: LocalizedError {
     case notFound(Engine)
     case tooOld(String)
+    /// The run ended, and this is the best account of why.
     case failed(String)
+    /// The agent stopped without a result for a reason that may not repeat: a dropped connection,
+    /// an overloaded service, a missing report. Worth one more try.
+    case interrupted(String)
+    /// A usage or rate limit. Starting more runs now would fail the same way.
+    case limit(String)
 
     var errorDescription: String? {
         switch self {
@@ -52,10 +58,21 @@ enum AgentError: LocalizedError {
             return L("Couldn't find the %@ command. Install %@, or set its path in Settings.", engine.command, engine.name)
         case .tooOld(let version):
             return L("Audits need Claude Code %@ or later, and this Mac has %@. Run `claude update`.", AgentService.minimumClaudeVersion, version)
-        case .failed(let message):
+        case .failed(let message), .interrupted(let message), .limit(let message):
             return message
         }
     }
+}
+
+/// What a run left behind, for explaining a failure.
+struct Transcript {
+    var status: Int32 = 0
+    var stderr = ""
+    var events = 0
+    var lastEvent = ""
+    /// Lines on stdout that weren't JSON events: the CLI talking in plain text.
+    var stray: [String] = []
+    var timedOut = false
 }
 
 /// Runs an agent CLI headless with the user's existing login.
@@ -145,6 +162,7 @@ enum AgentService {
         p.executableURL = URL(fileURLWithPath: executable)
         p.arguments = args
         let out = Pipe()
+        p.standardInput = FileHandle.nullDevice   // or a CLI that reads its input would wait forever
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
         guard (try? p.run()) != nil else { return nil }
@@ -156,10 +174,17 @@ enum AgentService {
 
     // MARK: Running
 
+    /// How long one run may take before it's stopped. Audits and merges usually finish in a minute or two.
+    static let timeout: TimeInterval = 20 * 60
+
     /// Starts `cli` with `args`, writes `prompt` to its stdin and hands every JSON line of stdout to `onEvent`.
-    /// Returns what the process wrote to stderr.
+    ///
+    /// Output is split on line feeds only. JSON may carry other Unicode line separators inside its
+    /// strings, and a reader that breaks on those cuts an event in half and loses it. Anything on
+    /// stdout that isn't a JSON event is kept in the transcript, since that is how a CLI reports
+    /// trouble it can't express as an event.
     private static func stream(cli: URL, args: [String], cwd: URL, prompt: String,
-                               onEvent: ([String: Any]) -> Void) async throws -> (stderr: String, status: Int32) {
+                               onEvent: ([String: Any]) -> Void) async throws -> Transcript {
         let process = Process()
         process.executableURL = cli
         process.arguments = args
@@ -177,30 +202,94 @@ enum AgentService {
         let errBuffer = Buffer()
         stderr.fileHandleForReading.readabilityHandler = { handle in errBuffer.append(handle.availableData) }
 
+        // A plain blocking read on its own thread. It ends when the CLI closes its output.
+        let reader = stdout.fileHandleForReading
+        let chunks = AsyncStream<Data> { continuation in
+            Thread.detachNewThread {
+                while let data = try? reader.read(upToCount: 1 << 16), !data.isEmpty { continuation.yield(data) }
+                continuation.finish()
+            }
+        }
+        // If a helper the CLI started keeps the pipe open after the CLI itself is gone, stop waiting for it.
+        process.terminationHandler = { _ in
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3) { try? reader.close() }
+        }
+
         try process.run()
         let writer = stdin.fileHandleForWriting
         let payload = Data(prompt.utf8)
         DispatchQueue.global(qos: .userInitiated).async {
-            writer.write(payload)
+            try? writer.write(contentsOf: payload)
             try? writer.close()
         }
 
+        let timedOut = Buffer()
+        let deadline = DispatchWorkItem {
+            guard process.isRunning else { return }
+            timedOut.append(Data([1]))
+            process.terminate()
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: deadline)
+        defer { deadline.cancel() }
+
         return try await withTaskCancellationHandler {
-            for try await line in stdout.fileHandleForReading.bytes.lines {
-                if let obj = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any] { onEvent(obj) }
+            var transcript = Transcript()
+            var pending = Data()
+            func take(_ line: Data) {
+                guard !line.isEmpty else { return }
+                if let obj = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] {
+                    transcript.events += 1
+                    transcript.lastEvent = [obj["type"] as? String, obj["subtype"] as? String].compactMap { $0 }.joined(separator: "/")
+                    onEvent(obj)
+                } else {
+                    let text = String(decoding: line.prefix(600), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty { transcript.stray = Array((transcript.stray + [text]).suffix(5)) }
+                }
             }
+            for await chunk in chunks {
+                pending.append(chunk)
+                while let newline = pending.firstIndex(of: 0x0A) {
+                    take(pending[pending.startIndex..<newline])
+                    pending = Data(pending[pending.index(after: newline)...])
+                }
+            }
+            take(pending)
             process.waitUntilExit()
             stderr.fileHandleForReading.readabilityHandler = nil
             try Task.checkCancellation()
-            return (errBuffer.string.trimmingCharacters(in: .whitespacesAndNewlines), process.terminationStatus)
+            transcript.status = process.terminationStatus
+            transcript.stderr = errBuffer.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            transcript.timedOut = !timedOut.string.isEmpty
+            return transcript
         } onCancel: {
             if process.isRunning { process.terminate() }
         }
     }
 
+    /// Runs the agent once more if the first run was cut short for a reason that may not repeat.
     static func run(engine: Engine, prompt: String, schema: String, appendSystemPrompt: String? = nil,
                     cwd: URL, cli: URL, model: String, allowSkills: Bool = false,
                     progress: @escaping @Sendable (String) -> Void) async throws -> Run {
+        func attempt() async throws -> Run {
+            try await runOnce(engine: engine, prompt: prompt, schema: schema, appendSystemPrompt: appendSystemPrompt,
+                              cwd: cwd, cli: cli, model: model, allowSkills: allowSkills, progress: progress)
+        }
+        do {
+            return try await attempt()
+        } catch AgentError.interrupted {
+            progress(L("Trying again"))
+            try await Task.sleep(for: .seconds(5))
+            do {
+                return try await attempt()
+            } catch AgentError.interrupted(let message) {
+                throw AgentError.failed(message)
+            }
+        }
+    }
+
+    private static func runOnce(engine: Engine, prompt: String, schema: String, appendSystemPrompt: String?,
+                                cwd: URL, cli: URL, model: String, allowSkills: Bool,
+                                progress: @escaping @Sendable (String) -> Void) async throws -> Run {
         let started = Date()
         switch engine {
         case .claude:
@@ -213,12 +302,26 @@ enum AgentService {
             if !model.isEmpty { args += ["--model", model] }
             if let appendSystemPrompt { args += ["--append-system-prompt", appendSystemPrompt] }
             var final: [String: Any]?
-            let (stderr, status) = try await stream(cli: cli, args: args, cwd: cwd, prompt: prompt) { obj in
+            var said = ""        // an error an event carried, in the agent's words
+            var limit = ""       // a limit Claude Code announced, with when it resets
+            let transcript = try await stream(cli: cli, args: args, cwd: cwd, prompt: prompt) { obj in
                 switch obj["type"] as? String {
                 case "assistant":
                     let content = (obj["message"] as? [String: Any])?["content"] as? [[String: Any]] ?? []
                     for block in content where block["type"] as? String == "tool_use" {
                         progress(describe(tool: block["name"] as? String ?? "", input: block["input"] as? [String: Any] ?? [:], cwd: cwd))
+                    }
+                    // An API failure arrives as an assistant message with an `error` field and the reason as text.
+                    if let error = obj["error"] as? String {
+                        let text = content.compactMap { $0["text"] as? String }.joined(separator: " ")
+                        said = text.isEmpty ? error : text
+                    }
+                case "rate_limit_event":
+                    let info = obj["rate_limit_info"] as? [String: Any] ?? [:]
+                    if let status = info["status"] as? String, !status.hasPrefix("allowed") {
+                        limit = (info["resetsAt"] as? Double).map {
+                            L("The limit resets %@.", Date(timeIntervalSince1970: $0).formatted(.relative(presentation: .named)))
+                        } ?? L("Try again later.")
                     }
                 case "result":
                     final = obj
@@ -227,15 +330,26 @@ enum AgentService {
                 }
             }
             guard let final else {
-                throw AgentError.failed(stderr.isEmpty ? L("%@ exited without a result (status %d).", engine.name, Int(status)) : stderr)
+                throw explain(engine, transcript, said: said, limit: limit, cwd: cwd)
             }
-            guard (final["is_error"] as? Bool) != true, let structured = final["structured_output"] else {
-                let message = (final["result"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-                    ?? L("%@ returned no result.", engine.name)
-                throw AgentError.failed(message)
+            let text = final["result"] as? String ?? ""
+            if (final["is_error"] as? Bool) != true {
+                if let structured = final["structured_output"], !(structured is NSNull) {
+                    return Run(structured: try JSONSerialization.data(withJSONObject: structured),
+                               costUSD: final["total_cost_usd"] as? Double, duration: Date().timeIntervalSince(started))
+                }
+                // Sometimes the report comes back as the reply's text instead of through the structured channel.
+                if let data = jsonObject(in: text) {
+                    return Run(structured: data, costUSD: final["total_cost_usd"] as? Double, duration: Date().timeIntervalSince(started))
+                }
+                log(engine, transcript, said: "no structured output; result text: " + text.prefix(300), cwd: cwd)
+                throw AgentError.interrupted(L("%@ finished without the report Rulebook asked for.", engine.name))
             }
-            return Run(structured: try JSONSerialization.data(withJSONObject: structured),
-                       costUSD: final["total_cost_usd"] as? Double, duration: Date().timeIntervalSince(started))
+            if final["subtype"] as? String == "error_max_turns" {
+                throw AgentError.failed(L("%@ ran out of steps before it finished. The project may be too large to check in one run.", engine.name))
+            }
+            let status = (final["api_error_status"] as? Int).map { " (HTTP \($0))" } ?? ""
+            throw explain(engine, transcript, said: (said.isEmpty ? text : said) + status, limit: limit, cwd: cwd)
 
         case .codex:
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("rulebook-\(UUID().uuidString)", isDirectory: true)
@@ -249,26 +363,91 @@ enum AgentService {
             if !model.isEmpty { args += ["--model", model] }
             args.append("-")
             let fullPrompt = appendSystemPrompt.map { prompt + "\n\n" + $0 } ?? prompt
-            var failure: String?
-            let (stderr, status) = try await stream(cli: cli, args: args, cwd: cwd, prompt: fullPrompt) { obj in
+            var said = ""
+            let transcript = try await stream(cli: cli, args: args, cwd: cwd, prompt: fullPrompt) { obj in
                 let item = obj["item"] as? [String: Any]
                 switch obj["type"] as? String {
                 case "item.started" where item?["type"] as? String == "command_execution":
                     progress(describe(command: item?["command"] as? String ?? ""))
                 case "turn.failed":
-                    failure = (obj["error"] as? [String: Any])?["message"] as? String
+                    said = (obj["error"] as? [String: Any])?["message"] as? String ?? said
                 case "error":
-                    failure = obj["message"] as? String
+                    said = obj["message"] as? String ?? said
                 default:
                     break
                 }
             }
-            guard failure == nil, let data = try? Data(contentsOf: resultURL),
-                  (try? JSONSerialization.jsonObject(with: data)) is [String: Any] else {
-                throw AgentError.failed(failure ?? (stderr.isEmpty ? L("%@ exited without a result (status %d).", engine.name, Int(status)) : stderr))
+            if said.isEmpty, let data = try? Data(contentsOf: resultURL), let report = jsonObject(in: String(decoding: data, as: UTF8.self)) {
+                return Run(structured: report, costUSD: nil, duration: Date().timeIntervalSince(started))
             }
-            return Run(structured: data, costUSD: nil, duration: Date().timeIntervalSince(started))
+            throw explain(engine, transcript, said: said, limit: "", cwd: cwd)
         }
+    }
+
+    // MARK: Explaining failures
+
+    /// The JSON object in `text`, whether it is the whole text or wrapped in a code fence or a sentence.
+    static func jsonObject(in text: String) -> Data? {
+        guard let open = text.firstIndex(of: "{"), let close = text.lastIndex(of: "}"), open < close else { return nil }
+        let data = Data(text[open...close].utf8)
+        return (try? JSONSerialization.jsonObject(with: data)) is [String: Any] ? data : nil
+    }
+
+    private static func mentions(_ text: String, _ words: [String]) -> Bool {
+        let lowered = text.lowercased()
+        return words.contains { lowered.contains($0) }
+    }
+
+    /// Turns a run that produced no usable result into an error that says what the CLI reported.
+    static func explain(_ engine: Engine, _ transcript: Transcript, said: String, limit: String, cwd: URL) -> AgentError {
+        log(engine, transcript, said: said, cwd: cwd)
+        if transcript.timedOut {
+            return .failed(L("%1$@ was stopped after %2$d minutes without finishing.", engine.name, Int(timeout / 60)))
+        }
+        // The most specific account available: an event's error, then plain text on stdout, then stderr.
+        let candidates = [said, transcript.stray.suffix(3).joined(separator: " "),
+                          transcript.stderr.split(separator: "\n").suffix(3).joined(separator: " ")]
+        var report = candidates.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.first { !$0.isEmpty } ?? ""
+        if report.count > 400 { report = String(report.prefix(400)) + "…" }
+
+        if !limit.isEmpty || mentions(report, ["usage limit", "rate limit", "rate_limit", "limit reached", "hit your limit", "http 429", "quota", "credit balance"]) {
+            return .limit([L("%@ has reached its usage limit.", engine.name), limit.isEmpty ? report : limit]
+                .filter { !$0.isEmpty }.joined(separator: " "))
+        }
+        if mentions(report, ["/login", "not logged in", "invalid api key", "authentication", "http 401", "unauthorized", "oauth token"]) {
+            return .failed(L("%1$@ isn't signed in. Run `%2$@` in Terminal and sign in, then try again. It said: %3$@", engine.name, engine.command, report))
+        }
+        if report.isEmpty {
+            return .interrupted(L("%1$@ exited (status %2$d) without reporting a result. The details are in %3$@.",
+                                  engine.name, Int(transcript.status), logURL.path.tildePath))
+        }
+        let message = L("%1$@ stopped: %2$@", engine.name, report)
+        let passing = mentions(report, ["overloaded", "http 5", "timeout", "timed out", "econnreset", "network", "fetch failed", "socket", "connection"])
+        return passing ? .interrupted(message) : .failed(message)
+    }
+
+    static var logURL: URL {
+        FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Logs/Rulebook/agent.log")
+    }
+
+    /// Appends what is known about a failed run to the log, and keeps the log from growing without end.
+    private static func log(_ engine: Engine, _ transcript: Transcript, said: String, cwd: URL) {
+        let entry = """
+        \(Date().formatted(.iso8601)) \(engine.command) in \(cwd.path.tildePath)
+          exit status \(transcript.status)\(transcript.timedOut ? ", timed out" : ""), \(transcript.events) events, last event: \(transcript.lastEvent.isEmpty ? "none" : transcript.lastEvent)
+          agent said: \(said.isEmpty ? "nothing" : said)
+          stdout, not JSON: \(transcript.stray.isEmpty ? "nothing" : transcript.stray.joined(separator: " | "))
+          stderr: \(transcript.stderr.isEmpty ? "nothing" : String(transcript.stderr.suffix(1500)))
+
+
+        """
+        let url = logURL
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var data = (try? Data(contentsOf: url)) ?? Data()
+        if data.count > 400_000 { data = Data(data.suffix(200_000)) }
+        data.append(Data(entry.utf8))
+        try? data.write(to: url, options: .atomic)
     }
 
     /// A step of a Claude Code run, for the progress line.

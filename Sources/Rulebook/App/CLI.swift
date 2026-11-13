@@ -34,7 +34,8 @@ enum CLI {
         let engine = LaunchOptions.value("--agent").flatMap(Engine.init(rawValue:))
             ?? Engine.allCases.first { AgentService.locate($0) != nil } ?? .claude
         let scan = Scanner.scan(root: root, includeGlobal: !LaunchOptions.noGlobal)
-        guard let doc = scan.docs[URL(fileURLWithPath: path).standardizedFileURL.path], let cli = AgentService.locate(engine) else {
+        let command = LaunchOptions.value("--command").map { URL(fileURLWithPath: $0) } ?? AgentService.locate(engine)
+        guard let doc = scan.docs[URL(fileURLWithPath: path).standardizedFileURL.path], let cli = command else {
             print("No document at \(path), or no \(engine.command) command")
             return
         }

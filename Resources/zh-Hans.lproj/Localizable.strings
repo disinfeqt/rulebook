@@ -173,8 +173,21 @@
 "Couldn't find the %@ command. Install %@, or set its path in Settings." = "找不到 %@ 命令。请安装 %@，或在设置中指定它的路径。";
 "Claude Code is out of date" = "Claude Code 版本过旧";
 "Audits need Claude Code %@ or later, and this Mac has %@. Run `claude update`." = "审查需要 Claude Code %@ 或更高版本，这台 Mac 上是 %@。请运行 `claude update`。";
-"%@ exited without a result (status %d)." = "%@ 未返回结果就退出了（状态码 %d）。";
-"%@ returned no result." = "%@ 没有返回结果。";
+
+/* When an agent run fails */
+"Trying again" = "正在重试";
+"The limit resets %@." = "限额将在%@重置。";
+"Try again later." = "请稍后再试。";
+"%@ finished without the report Rulebook asked for." = "%@ 已结束，但没有给出 Rulebook 要求的报告。";
+"%@ ran out of steps before it finished. The project may be too large to check in one run." = "%@ 还没完成就用完了步数。这个项目可能太大，无法一次检查完。";
+"%1$@ was stopped after %2$d minutes without finishing." = "%1$@ 运行了 %2$d 分钟仍未完成，已被停止。";
+"%@ has reached its usage limit." = "%@ 已达到用量上限。";
+"%1$@ isn't signed in. Run `%2$@` in Terminal and sign in, then try again. It said: %3$@" = "%1$@ 尚未登录。请在终端运行 `%2$@` 并登录，然后重试。它的提示是：%3$@";
+"%1$@ exited (status %2$d) without reporting a result. The details are in %3$@." = "%1$@ 没有返回结果就退出了（状态码 %2$d）。详情记录在 %3$@。";
+"%1$@ stopped: %2$@" = "%1$@ 已停止：%2$@";
+"Audits paused" = "审查已暂停";
+"%d file was left unaudited." = "还有 %d 个文件未审查。";
+"%d files were left unaudited." = "还有 %d 个文件未审查。";
 
 /* Audits */
 "Save before auditing?" = "审查前要先存储吗？";

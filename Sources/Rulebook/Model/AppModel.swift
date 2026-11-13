@@ -638,10 +638,23 @@ final class AppModel {
                 if !Task.isCancelled {
                     self?.jobs[id]?.isRunning = false
                     self?.jobs[id]?.error = error.localizedDescription
+                    if case AgentError.limit(let message) = error { self?.pauseAudits(message) }
                 }
             }
             self?.pumpAuditQueue()
         }
+    }
+
+    /// After a usage limit, the files still waiting would all fail the same way. Take them off the queue
+    /// and say so once, instead of marking each one failed.
+    private func pauseAudits(_ message: String) {
+        let waiting = auditQueue
+        guard !waiting.isEmpty else { return }
+        auditQueue.removeAll()
+        for id in waiting { jobs[id] = nil }
+        alert = AlertInfo(title: L("Audits paused"),
+                          message: message + "\n" + LN(waiting.count, "%d file was left unaudited.", "%d files were left unaudited."),
+                          actions: [.init(title: L("OK"), role: .cancel) {}])
     }
 
     func cancelJob(_ id: String) {

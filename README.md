@@ -43,6 +43,8 @@ Audits and merges run through an agent CLI you already have, with its existing l
 | Claude Code 2.1.283+ | its own `/doctor prompt-audit` | `--restricted --strict-mcp-config`, only Read, Glob and Grep |
 | Codex | the prompt in `AgentService.auditPrompt` | `--sandbox read-only --ignore-user-config` |
 
+When a run fails, Rulebook shows what the agent reported, tries once more if the failure looks temporary, and pauses the queue if the agent has hit its usage limit. Details of every failed run go to `~/Library/Logs/Rulebook/agent.log`.
+
 Rulebook uses the first one it finds. Settings lets you pick the agent, a model (the CLI's default otherwise) and the command's path. Runs count toward that login's usage. A typical audit takes about a minute.
 
 ## Keys

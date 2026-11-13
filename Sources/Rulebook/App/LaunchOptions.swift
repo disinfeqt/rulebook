@@ -7,6 +7,7 @@ import Foundation
 ///     --store <folder>  keep audit results here instead of Application Support
 ///     --agent <name>    with --audit: run it with `claude` or `codex` instead of the first one found
 ///     --model <name>    with --audit: use this model instead of the agent's default
+///     --command <path>  with --audit: run this executable as the agent, for testing how failures are reported
 ///     --settings        open the Settings window at launch
 enum LaunchOptions {
     static func value(_ flag: String) -> String? {

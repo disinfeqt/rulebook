@@ -20,7 +20,8 @@ ARCHIVE="$OUT/Rulebook.xcarchive"
 rm -rf "$OUT" && mkdir -p "$OUT"
 
 if [ "${1:-}" != "--dry" ]; then
-  if [ -n "$(git status --porcelain)" ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
+  # The website in docs/ isn't part of the app, so unfinished work there doesn't hold up a release.
+  if [ -n "$(git status --porcelain -- . ':!docs')" ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
     echo "Commit and push first, so the release matches the source it's tagged on." >&2
     exit 1
   fi

@@ -76,16 +76,21 @@ struct SidebarView: View {
                 Label("Overview", systemImage: "square.grid.2x2")
                     .tag(SidebarItem.overview)
             }
-            // A project is one row, named for the project. Its file is only named when it has several.
+            // A project with one file is one row, named for the project. One with several is its name with its files under it.
             let projects = model.visibleProjects
-            let crowded = Set((model.scan?.projects ?? []).filter { $0.docIDs.count > 1 }.map(\.id))
+            let grouped = Set((model.scan?.projects ?? []).filter { $0.docIDs.count > 1 }.map(\.id))
             ForEach(projects.filter(\.isGlobal)) { project in
                 Section(project.name) { rows(project, naming: .file) }
             }
             if projects.contains(where: { !$0.isGlobal }) {
                 Section("Projects") {
                     ForEach(projects.filter { !$0.isGlobal }) { project in
-                        rows(project, naming: crowded.contains(project.id) ? .both : .project)
+                        if grouped.contains(project.id) {
+                            Label(project.name, systemImage: "folder").selectionDisabled()
+                            rows(project, naming: .file).padding(.leading, 18)
+                        } else {
+                            rows(project, naming: .project)
+                        }
                     }
                 }
             }
@@ -114,8 +119,8 @@ struct SidebarView: View {
 }
 
 struct DocRow: View {
-    /// What a row is called: its file, its project, or the project with the file beside it.
-    enum Naming { case file, project, both }
+    /// What a row is called: its file, or its project when it's the project's only file.
+    enum Naming { case file, project }
 
     let doc: Doc
     var naming: Naming = .file
@@ -124,14 +129,7 @@ struct DocRow: View {
     var body: some View {
         HStack(spacing: 6) {
             Label {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(naming == .file ? doc.title : doc.projectName)
-                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)
-                    if naming == .both {
-                        Text(doc.title).lineLimit(1).truncationMode(.middle)
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
-                }
+                Text(naming == .file ? doc.title : doc.projectName).lineLimit(1).truncationMode(.middle)
             } icon: {
                 if let issue = doc.topIssue {
                     Image(systemName: issue.severity.icon).foregroundStyle(issue.severity.color)

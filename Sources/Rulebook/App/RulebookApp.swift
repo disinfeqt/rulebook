@@ -45,6 +45,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Come to the front first, so the windows are drawn as active ones.
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 NSRunningApplication.current.activate(options: [.activateAllWindows])
+                // The main window opens the size it was last left on this Mac. Pictures get the default size,
+                // and the saved one is left alone.
+                for window in NSApp.windows where window.identifier?.rawValue.hasPrefix("main") == true {
+                    window.setFrameAutosaveName("")
+                    var frame = window.frame
+                    frame.origin.y += frame.height - 860
+                    frame.size = NSSize(width: 1360, height: 860)
+                    window.setFrame(frame, display: true)
+                }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) {
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

@@ -32,7 +32,8 @@ fi
 
 shot() {
   local name=$1; shift
-  HOME="$WORK/home" "$APP" ${EXTRA[@]+"${EXTRA[@]}"} --root "$DEMO" --no-global --store "$STORE" "$@" --snapshot "$WORK/shots/$name" >/dev/null 2>&1
+  # The stand-in home also keeps this Mac's own settings and saved window size out of the pictures.
+  HOME="$WORK/home" CFFIXED_USER_HOME="$WORK/home" "$APP" ${EXTRA[@]+"${EXTRA[@]}"} --root "$DEMO" --no-global --store "$STORE" "$@" --snapshot "$WORK/shots/$name" >/dev/null 2>&1
   # With a sheet open, the sheet is the last window.
   cp "$(ls "$WORK/shots/$name"/window-*.png | sort | tail -1)" "$OUT/$name.png"
   echo "$OUT/$name.png"

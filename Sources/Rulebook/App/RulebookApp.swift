@@ -87,10 +87,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+struct CheckForUpdatesButton: View {
+    @ObservedObject private var updater = Updater.shared
+
+    var body: some View {
+        Button("Check for Updates…") { updater.check() }
+            .disabled(!updater.canCheck)
+    }
+}
+
 struct RulebookCommands: Commands {
     let model: AppModel
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) { CheckForUpdatesButton() }
         CommandGroup(replacing: .newItem) {
             Button("Open Folder…") { model.chooseFolder() }
                 .keyboardShortcut("o")

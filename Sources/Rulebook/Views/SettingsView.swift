@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @ObservedObject private var updater = Updater.shared
 
     var body: some View {
         @Bindable var model = model
@@ -56,6 +57,10 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Section {
+                Toggle("Check for updates automatically", isOn: Binding(get: { updater.checksAutomatically },
+                                                                         set: { updater.checksAutomatically = $0 }))
             }
         }
         .formStyle(.grouped)

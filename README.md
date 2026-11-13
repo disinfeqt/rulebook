@@ -55,7 +55,7 @@ Rulebook uses the first one it finds. Settings lets you pick the agent, a model 
 
 Download [Rulebook.zip](https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip), open it, and drag Rulebook to your Applications folder. It needs macOS 14 or later.
 
-Releases are signed and notarized by Apple, and run on Apple silicon and Intel Macs.
+Releases are signed and notarized by Apple, and run on Apple silicon and Intel Macs. Rulebook checks for new releases and offers to install them; you can turn that off in Settings or check yourself from the Rulebook menu.
 
 ## Build
 
@@ -76,7 +76,7 @@ The app's own binary, `Rulebook.app/Contents/MacOS/Rulebook`, takes a few argume
 - `Rulebook --root <folder> --audit <file>` runs one audit headless and stores the result where the app reads it. Add `--agent claude|codex` or `--model <name>` to choose.
 - `--root <folder>`, `--no-global` and `--store <folder>` point the app at another folder and audit store without changing your settings.
 
-`./scripts/release.sh` builds the app for both Mac architectures, signs it with a Developer ID, has Apple notarize it, and publishes it as a GitHub release. The website in `docs/` is deployed from this repository, and its download button always points at the latest release.
+`./scripts/release.sh` builds the app for both Mac architectures, signs it with a Developer ID, has Apple notarize it, and publishes it as a GitHub release, and updates `docs/appcast.xml`, the feed that copies of the app check for updates. The feed is signed with a [Sparkle](https://sparkle-project.org) key kept in the login Keychain. The website in `docs/` is deployed from this repository, and its download button always points at the latest release.
 
 Two scripts regenerate checked-in files:
 

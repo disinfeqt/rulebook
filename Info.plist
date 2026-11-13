@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Updates, through Sparkle. Xcode fills in everything else from the build settings. -->
+	<key>SUFeedURL</key>
+	<string>https://rulebook.duxi.ao/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>1FR3pcoKC0VzQ1g6ZQ5Pd1Fch6hBZO7fJ0AUQdkFDdY=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+</dict>
+</plist>

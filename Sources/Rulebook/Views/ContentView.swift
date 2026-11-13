@@ -90,8 +90,8 @@ struct WelcomeView: View {
 
 // MARK: Sidebar
 
-/// The sidebar reads like a contents page: names without icons, what belongs to a place set in under it, and
-/// anything to act on, with the counts, in a column at the trailing edge.
+/// The sidebar reads like a contents page: the places are names without icons, what belongs to one is set in
+/// under it, and anything to act on, with the counts, is in a column at the trailing edge.
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
     /// How far a row is set in under the one it belongs to.
@@ -101,15 +101,16 @@ struct SidebarView: View {
         @Bindable var model = model
         List(selection: $model.selection) {
             // What's in every place, by kind.
+            // These three lists are the only rows with a symbol. On every project and file it said nothing.
             Section {
-                Text("Rules")
+                Label("Rules", systemImage: "list.bullet")
                     .tag(SidebarItem.overview)
                 // A second way to look at the rules, so it sits under them.
-                Text("Repeated Rules")
+                Label("Repeated Rules", systemImage: "square.on.square")
                     .padding(.leading, inset)
                     .tag(SidebarItem.repeatedRules)
                     .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
-                Text("Skills")
+                Label("Skills", systemImage: "puzzlepiece.extension")
                     .tag(SidebarItem.skills)
                     .help("The skills in your projects and your home folder, and which agents load each one.")
             }

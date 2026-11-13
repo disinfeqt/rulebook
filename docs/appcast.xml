@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Rulebook</title>
+    <item>
+      <title>0.1.5</title>
+      <pubDate>Fri, 13 Nov 2026 07:23:31 +0000</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>0.1.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Rulebook now checks for new versions and offers to install them. You can turn this off in Settings, or check yourself with Check for Updates in the Rulebook menu.</p>]]></description>
+      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.1.5/Rulebook.zip" length="3530629" type="application/octet-stream" sparkle:edSignature="MxdB8ZvwQA1ddqsPhNFUuwLlZPNlGNvCnGDkoq1Ojy4FD31CU0yd1DdTTjtaxO1eCWTLqIsVe9lxYHXppEnlCA=="/>
+    </item>
+  </channel>
+</rss>

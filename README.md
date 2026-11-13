@@ -2,6 +2,8 @@
 
 # Rulebook
 
+**[Download for macOS](https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip)** · [rulebook.duxi.ao](https://rulebook.duxi.ao)
+
 A native macOS app for the agent instruction files across your projects. Point it at the folder that holds your projects and it finds every `CLAUDE.md`, `AGENTS.md` and `CLAUDE.local.md`, works out how they relate, and lets you edit, compare, merge and audit them in one place.
 
 ![Overview: every instruction file in a projects folder, with the ones that need attention first](docs/screenshots/overview.png)
@@ -47,6 +49,12 @@ Rulebook uses the first one it finds. Settings lets you pick the agent, a model 
 
 ⌘O open folder · ⌘S save · ⌥⌘S save all · ⌥⌘↓ / ⌥⌘↑ next / previous file · ⇧⌥⌘↓ next file that needs attention · ⌥⌘D compare · ⇧⌘M merge · ⌘R rescan · ⌥⌘I inspector
 
+## Install
+
+Download [Rulebook.zip](https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip), open it, and drag Rulebook to your Applications folder. It needs macOS 14 or later.
+
+Releases aren't notarized by Apple yet, so macOS will refuse to open the app the first time. To allow it, open System Settings, go to Privacy & Security, and click Open Anyway next to the message about Rulebook.
+
 ## Build
 
 Open `Rulebook.xcodeproj` in Xcode 26 or later and run. The app runs on macOS 14 or later.
@@ -65,6 +73,8 @@ The app's own binary, `Rulebook.app/Contents/MacOS/Rulebook`, takes a few argume
 - `Rulebook --dump <folder>` prints the analysis without opening a window.
 - `Rulebook --root <folder> --audit <file>` runs one audit headless and stores the result where the app reads it. Add `--agent claude|codex` or `--model <name>` to choose.
 - `--root <folder>`, `--no-global` and `--store <folder>` point the app at another folder and audit store without changing your settings.
+
+`./scripts/release.sh` builds the app for both Mac architectures and publishes it as a GitHub release. The website in `docs/` is deployed from this repository, and its download button always points at the latest release.
 
 Two scripts regenerate checked-in files:
 

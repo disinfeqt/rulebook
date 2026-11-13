@@ -42,7 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // and falls back to an offscreen render, which leaves them blank.
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             let dir = URL(fileURLWithPath: (args[i + 1] as NSString).expandingTildeInPath, isDirectory: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            // Come to the front first, so the windows are drawn as active ones.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                NSRunningApplication.current.activate(options: [.activateAllWindows])
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) {
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 for (n, window) in NSApp.windows.filter({ $0.isVisible }).enumerated() {
                     let url = dir.appendingPathComponent("window-\(n).png")

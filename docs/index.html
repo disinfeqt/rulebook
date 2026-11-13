@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rulebook: every CLAUDE.md and AGENTS.md in one place</title>
+<meta name="description" content="A Mac app that finds the instruction files your coding agents read across all your projects, shows which have drifted apart, and helps you fix them.">
+<meta property="og:title" content="Rulebook: every CLAUDE.md and AGENTS.md in one place">
+<meta property="og:description" content="A Mac app that finds the instruction files your coding agents read across all your projects, shows which have drifted apart, and helps you fix them.">
+<meta property="og:image" content="https://rulebook.duxi.ao/screenshots/overview.png">
+<meta property="og:url" content="https://rulebook.duxi.ao/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="logo/icon.png">
+<link rel="alternate" hreflang="en" href="https://rulebook.duxi.ao/">
+<link rel="alternate" hreflang="zh-Hans" href="https://rulebook.duxi.ao/zh/">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="column top">
+  <a class="name" href="./">Rulebook</a>
+  <nav>
+    <a href="https://github.com/disinfeqt/rulebook">GitHub</a>
+    <a href="zh/" lang="zh-Hans">中文</a>
+  </nav>
+</header>
+
+<div class="rules"><div class="column"><svg viewBox="84 5 403.85 472" role="img" aria-label="R"><path d="M176.00 287.00L227.23 287.00L372.15 477.00L487.85 477.00L334.57 276.03C385.35 254.71 421.00 204.52 421.00 146.00C421.00 68.13 357.87 5.00 280.00 5.00L84.00 5.00L84.00 477.00L176.00 477.00ZM176.00 195.00L176.00 97.00L280.00 97.00C307.06 97.00 329.00 118.94 329.00 146.00C329.00 173.06 307.06 195.00 280.00 195.00Z"/></svg></div></div>
+
+<main class="column">
+  <div class="opening">
+    <h1>Every CLAUDE.md and AGENTS.md on your Mac, in one place.</h1>
+    <p class="lede">Rulebook finds the instruction files your coding agents read, across all your projects. It shows which ones have drifted apart, which ones an agent never sees, and which were written for last year's models. Then it helps you fix them.</p>
+    <div class="get">
+      <a class="download" href="https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip">Download for macOS</a>
+      <p>Free and open source. Needs macOS 14 or later.</p>
+    </div>
+  </div>
+
+  <figure><img src="screenshots/overview.png" width="2720" height="1720" alt="Rulebook's overview: a table of every instruction file in a projects folder, with the ones that need attention at the top"></figure>
+
+  <section>
+    <h2>See what each agent actually reads</h2>
+    <p>Claude Code reads <code>CLAUDE.md</code>. Codex, Cursor and most other agents read <code>AGENTS.md</code>. When a project has both, Rulebook works out how they relate and tells you who reads each file.</p>
+    <dl class="states">
+      <dt>Linked</dt><dd><code>CLAUDE.md</code> only imports <code>AGENTS.md</code>, or is a symlink to it. Every agent reads the same file.</dd>
+      <dt>Layered</dt><dd><code>CLAUDE.md</code> imports <code>AGENTS.md</code> and adds rules only Claude Code gets.</dd>
+      <dt>Duplicated</dt><dd>Two identical copies. Rulebook shows one and saves both.</dd>
+      <dt>Diverged</dt><dd>Two files with different content, so each agent misses rules the other one gets.</dd>
+      <dt>Skipped</dt><dd>An <code>AGENTS.md</code> that Claude Code never loads, because a <code>CLAUDE.local.md</code> or a parent <code>CLAUDE.md</code> takes its place.</dd>
+    </dl>
+    <figure><img src="screenshots/editor.png" width="2720" height="1720" loading="lazy" alt="Editing a CLAUDE.md that has diverged from its AGENTS.md. The inspector shows who reads the file and what is wrong with it"></figure>
+  </section>
+
+  <section>
+    <h2>Compare and merge files that drifted</h2>
+    <p>When two files have drifted apart, Compare puts them side by side. Merge asks your agent to combine them into one <code>AGENTS.md</code> and a <code>CLAUDE.md</code> that imports it. You review the result before anything is saved.</p>
+    <figure><img src="screenshots/compare.png" width="2720" height="1720" loading="lazy" alt="AGENTS.md and CLAUDE.md side by side, with the lines only one agent sees highlighted"></figure>
+  </section>
+
+  <section>
+    <h2>Audit with the agent you already use</h2>
+    <p>An audit checks a file against its project. It looks for instructions written for older models, commands and paths that no longer exist, and rules that contradict each other. You get a score, findings that jump to the text they are about, and suggested edits as a diff.</p>
+    <p>Audits run through <strong>Claude Code</strong> or <strong>Codex</strong> with your existing login, and they can't change your files. The app and its audits come in English and Simplified Chinese.</p>
+    <figure><img src="screenshots/audit.png" width="2720" height="1720" loading="lazy" alt="An audit in the inspector: a score of 88, a one-line verdict and a list of findings"></figure>
+  </section>
+
+  <section class="install" id="install">
+    <h2>Install</h2>
+    <ol>
+      <li><a href="https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip">Download Rulebook.zip</a> and open it.</li>
+      <li>Drag Rulebook to your Applications folder and open it.</li>
+      <li>Choose the folder that holds your projects.</li>
+    </ol>
+    <p>This first version isn't notarized by Apple yet, so macOS will refuse to open it the first time. To allow it, open System Settings, go to Privacy &amp; Security, and click Open Anyway next to the message about Rulebook.</p>
+    <p>You can also <a href="https://github.com/disinfeqt/rulebook">build it from source</a> with Xcode 26 or later.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="column">
+    <span>Rulebook is released under the MIT License.</span>
+    <a href="https://github.com/disinfeqt/rulebook">Source on GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>

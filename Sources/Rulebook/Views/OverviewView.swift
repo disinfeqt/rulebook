@@ -102,7 +102,7 @@ struct OverviewView: View {
                     Text(date.formatted(date: .abbreviated, time: .omitted)).foregroundStyle(.secondary)
                 }
             }
-            .width(min: 90, ideal: 110, max: 130)
+            .width(min: 96, ideal: 140, max: 180)
             TableColumn("Audit", value: \.score) { row in
                 AuditBadge(doc: row.doc)
             }

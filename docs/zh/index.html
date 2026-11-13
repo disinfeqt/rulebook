@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rulebook：集中管理所有 CLAUDE.md 和 AGENTS.md</title>
+<meta name="description" content="一款 Mac 应用，找出所有项目里编程智能体读取的指令文件，告诉你哪些已经不一致，并帮你修好。">
+<meta property="og:title" content="Rulebook：集中管理所有 CLAUDE.md 和 AGENTS.md">
+<meta property="og:description" content="一款 Mac 应用，找出所有项目里编程智能体读取的指令文件，告诉你哪些已经不一致，并帮你修好。">
+<meta property="og:image" content="https://rulebook.duxi.ao/screenshots/overview.png">
+<meta property="og:url" content="https://rulebook.duxi.ao/zh/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../logo/icon.png">
+<link rel="alternate" hreflang="en" href="https://rulebook.duxi.ao/">
+<link rel="alternate" hreflang="zh-Hans" href="https://rulebook.duxi.ao/zh/">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+
+<header class="column top">
+  <a class="name" href="./">Rulebook</a>
+  <nav>
+    <a href="https://github.com/disinfeqt/rulebook">GitHub</a>
+    <a href="../" lang="en">English</a>
+  </nav>
+</header>
+
+<div class="rules"><div class="column"><svg viewBox="84 5 403.85 472" role="img" aria-label="R"><path d="M176.00 287.00L227.23 287.00L372.15 477.00L487.85 477.00L334.57 276.03C385.35 254.71 421.00 204.52 421.00 146.00C421.00 68.13 357.87 5.00 280.00 5.00L84.00 5.00L84.00 477.00L176.00 477.00ZM176.00 195.00L176.00 97.00L280.00 97.00C307.06 97.00 329.00 118.94 329.00 146.00C329.00 173.06 307.06 195.00 280.00 195.00Z"/></svg></div></div>
+
+<main class="column">
+  <div class="opening">
+    <h1>Mac 上所有的 CLAUDE.md 和 AGENTS.md，集中在一处。</h1>
+    <p class="lede">Rulebook 会找出所有项目里编程智能体读取的指令文件，告诉你哪些已经互相不一致，哪些根本没被读到，哪些还是为去年的模型写的，然后帮你把它们修好。</p>
+    <div class="get">
+      <a class="download" href="https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip">下载 macOS 版</a>
+      <p>免费开源，需要 macOS 14 或更高版本。</p>
+    </div>
+  </div>
+
+  <figure><img src="../screenshots/zh/overview.png" width="2720" height="1720" alt="Rulebook 的概览：项目文件夹里所有指令文件的列表，需要处理的排在最前"></figure>
+
+  <section>
+    <h2>看清每个智能体实际读到了什么</h2>
+    <p>Claude Code 读 <code>CLAUDE.md</code>，Codex、Cursor 和大多数其他智能体读 <code>AGENTS.md</code>。当一个项目里两者都有时，Rulebook 会判断它们之间的关系，并告诉你每个文件由谁读取。</p>
+    <dl class="states">
+      <dt>已关联</dt><dd><code>CLAUDE.md</code> 只是导入 <code>AGENTS.md</code>，或是指向它的符号链接。所有智能体读的是同一份文件。</dd>
+      <dt>分层</dt><dd><code>CLAUDE.md</code> 导入了 <code>AGENTS.md</code>，并补充了只给 Claude Code 的规则。</dd>
+      <dt>内容重复</dt><dd>两份完全相同的副本。Rulebook 只显示一份，存储时同时写入两份。</dd>
+      <dt>内容不一致</dt><dd>两份内容不同的文件，每个智能体都读不到另一方的规则。</dd>
+      <dt>被跳过</dt><dd><code>AGENTS.md</code> 被 <code>CLAUDE.local.md</code> 或上级目录的 <code>CLAUDE.md</code> 取代，Claude Code 不会加载它。</dd>
+    </dl>
+    <figure><img src="../screenshots/zh/editor.png" width="2720" height="1720" loading="lazy" alt="正在编辑一份与 AGENTS.md 不一致的 CLAUDE.md，检查器里显示谁在读取这个文件，以及它有什么问题"></figure>
+  </section>
+
+  <section>
+    <h2>对比并合并已经不一致的文件</h2>
+    <p>两份文件出现差异时，“对比”会把它们并排显示。“合并”会让你的智能体把两者合成一份 <code>AGENTS.md</code>，以及一份导入它的 <code>CLAUDE.md</code>。存储之前，你可以先检查结果。</p>
+    <figure><img src="../screenshots/zh/compare.png" width="2720" height="1720" loading="lazy" alt="AGENTS.md 和 CLAUDE.md 并排显示，只有一方能读到的行被高亮"></figure>
+  </section>
+
+  <section>
+    <h2>用你已经在用的智能体来审查</h2>
+    <p>审查会对照项目检查一个文件：为旧模型写的指令、已经不存在的命令和路径、互相矛盾的规则。你会得到一个评分、可以跳转到对应原文的问题列表，以及以差异形式呈现的修改建议。</p>
+    <p>审查通过 <strong>Claude Code</strong> 或 <strong>Codex</strong> 运行，使用你已有的登录，并且无法修改你的文件。应用界面和审查结果都支持简体中文和英文。</p>
+    <figure><img src="../screenshots/zh/audit.png" width="2720" height="1720" loading="lazy" alt="检查器里的一次审查：评分、一句话结论和问题列表"></figure>
+  </section>
+
+  <section class="install" id="install">
+    <h2>安装</h2>
+    <ol>
+      <li><a href="https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip">下载 Rulebook.zip</a> 并打开。</li>
+      <li>把 Rulebook 拖到“应用程序”文件夹，然后打开它。</li>
+      <li>选择存放各个项目的文件夹。</li>
+    </ol>
+    <p>第一个版本还没有经过 Apple 公证，所以第一次打开时 macOS 会拒绝。要允许它运行，请打开“系统设置”，进入“隐私与安全性”，在关于 Rulebook 的提示旁点按“仍要打开”。</p>
+    <p>你也可以用 Xcode 26 或更高版本<a href="https://github.com/disinfeqt/rulebook">从源代码构建</a>。</p>
+  </section>
+</main>
+
+<footer>
+  <div class="column">
+    <span>Rulebook 以 MIT 许可证发布。</span>
+    <a href="https://github.com/disinfeqt/rulebook">GitHub 上的源代码</a>
+  </div>
+</footer>
+
+</body>
+</html>

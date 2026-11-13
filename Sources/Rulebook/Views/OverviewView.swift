@@ -4,8 +4,8 @@ import SwiftUI
 struct OverviewRow: Identifiable {
     let doc: Doc
     let lines: Int
-    /// -1 when the file has no audit, so unaudited files sort below every score.
-    let score: Int
+    /// The audit's grade, worst first, and -1 when the file has no audit.
+    let grade: Int
 
     var id: String { doc.id }
     var project: String { doc.projectName }
@@ -71,7 +71,7 @@ struct OverviewView: View {
     private func table(_ scan: ScanResult) -> some View {
         let rows = scan.projects.flatMap { $0.docIDs.compactMap { scan.docs[$0] } }.map { doc in
             OverviewRow(doc: doc, lines: MarkdownScan.stats(doc.primary.content).lines,
-                        score: model.assessments[doc.id]?.score ?? -1)
+                        grade: model.assessments[doc.id]?.grade.rawValue ?? -1)
         }
         return Table(rows.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Project", value: \.project)
@@ -103,7 +103,7 @@ struct OverviewView: View {
                 }
             }
             .width(min: 96, ideal: 140, max: 180)
-            TableColumn("Audit", value: \.score) { row in
+            TableColumn("Audit", value: \.grade) { row in
                 AuditBadge(doc: row.doc)
             }
             .width(50)

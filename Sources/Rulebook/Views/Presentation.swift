@@ -88,3 +88,13 @@ extension Doc {
     /// What the sidebar and the overview show for this file: its worst problem, or nothing.
     var topIssue: Issue? { needsAttention ? savedIssues.first : nil }
 }
+
+extension Assessment.Grade {
+    var color: Color {
+        switch self {
+        case .serious: return .red
+        case .minor: return .orange
+        case .clean: return .green
+        }
+    }
+}

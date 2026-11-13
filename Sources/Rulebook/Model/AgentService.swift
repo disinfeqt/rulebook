@@ -19,7 +19,20 @@ struct Assessment: Codable, Hashable {
         var suggestion: String
         var id: String { title + "|" + quote }
     }
+    /// How an audit came out, worst first.
+    enum Grade: Int, Comparable {
+        case serious, minor, clean
+        static func < (a: Grade, b: Grade) -> Bool { a.rawValue < b.rawValue }
+    }
+
+    /// The agent's own 0 to 100. Not shown: files with serious findings have scored above files with none.
     var score: Int
+    /// The audit at a glance, taken from its most serious finding.
+    var grade: Grade {
+        if issues.contains(where: { $0.severity == "high" }) { return .serious }
+        if issues.contains(where: { $0.severity == "medium" }) { return .minor }
+        return .clean
+    }
     var verdict: String
     var summary: String
     var strengths: [String]

@@ -150,7 +150,7 @@ struct DocRow: View {
     }
 }
 
-/// A file's audit at a glance: queued, running, failed, or the score.
+/// A file's audit at a glance: queued, running, failed, or a dot the color of its most serious finding.
 struct AuditBadge: View {
     let doc: Doc
     @Environment(AppModel.self) private var model
@@ -168,10 +168,18 @@ struct AuditBadge: View {
             ProgressView().controlSize(.small)
         } else if let assessment = model.assessments[doc.id] {
             let stale = model.isAssessmentStale(doc)
-            Text(verbatim: "\(assessment.score)")
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(stale ? .tertiary : .secondary)
-                .help(stale ? L("The file changed since this audit") : assessment.verdict)
+            // Hollow once the file has changed, because the audit is about an older version.
+            Group {
+                if stale {
+                    Circle().strokeBorder(assessment.grade.color, lineWidth: 1.5)
+                } else {
+                    Circle().fill(assessment.grade.color)
+                }
+            }
+            .frame(width: 9, height: 9)
+            .frame(width: 16)
+            .help(stale ? L("The file changed since this audit") : assessment.verdict)
+            .accessibilityLabel(assessment.verdict)
         }
     }
 }

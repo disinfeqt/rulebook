@@ -173,17 +173,11 @@ struct AssessmentView: View {
 
     var body: some View {
         let stale = model.isAssessmentStale(doc)
-        // The score sits on one line with its date, which never wraps. The verdict gets the full width below,
-        // so a long one can't leave the number hanging beside two lines of text.
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(verbatim: "\(assessment.score)")
-                    .font(.system(size: 28, weight: .semibold, design: .rounded).monospacedDigit())
-                Text(assessment.date.formatted(.relative(presentation: .named)))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
             Text(assessment.verdict).font(.headline).fixedSize(horizontal: false, vertical: true)
+            Text(assessment.date.formatted(.relative(presentation: .named)))
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if stale {
                 Text("The file changed since this audit")
                     .font(.caption)

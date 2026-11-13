@@ -32,9 +32,9 @@ When `CLAUDE.md` and `AGENTS.md` have drifted apart, Compare shows them side by 
 
 ## Audits
 
-Audit (⇧⌘A) checks a file against its project: instructions written for older models, references to files and commands that don't exist, and rules that contradict each other. You get a score, findings that jump to the text they're about, and suggested edits as a diff. Audit All (⌥⇧⌘A) works through every file that is new or has changed, and "Audit files again when they change" in Settings keeps results current.
+Audit (⇧⌘A) checks a file against its project: instructions written for older models, references to files and commands that don't exist, and rules that contradict each other. You get a verdict, findings that jump to the text they're about, and suggested edits as a diff. Audit All (⌥⇧⌘A) works through every file that is new or has changed, and "Audit files again when they change" in Settings keeps results current.
 
-![An audit in the inspector: a score, a verdict and findings](docs/screenshots/audit.png)
+![An audit in the inspector: a verdict and findings](docs/screenshots/audit.png)
 
 Audits and merges run through an agent CLI you already have, with its existing login:
 

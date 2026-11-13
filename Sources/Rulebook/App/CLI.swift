@@ -54,7 +54,7 @@ enum CLI {
                 var store = AssessmentStore.load()
                 store[doc.id] = a
                 AssessmentStore.save(store)
-                print("\nScore \(a.score) — \(a.verdict)\n\(a.summary)\n")
+                print("\n\(a.verdict) (\(a.grade), score \(a.score))\n\(a.summary)\n")
                 for f in a.issues { print("  [\(f.severity)] \(f.title)") }
                 print("\nRevised: \(a.revised.isEmpty ? "none" : "\(a.revised.count) chars") · \(Int(a.durationSeconds ?? 0))s")
             } catch {

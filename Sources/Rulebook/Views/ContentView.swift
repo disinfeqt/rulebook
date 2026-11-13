@@ -81,6 +81,7 @@ struct SidebarView: View {
                     ForEach(project.docIDs, id: \.self) { id in
                         if let doc = model.doc(id) {
                             DocRow(doc: doc).tag(SidebarItem.doc(id))
+                                .contextMenu { DocMenu(doc: doc) }
                         }
                     }
                 }
@@ -152,6 +153,40 @@ struct AuditBadge: View {
     }
 }
 
+/// What you can do with a file, for the menus that open on a right click.
+struct DocMenu: View {
+    let doc: Doc
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button("Audit") { model.audit(doc) }
+            .disabled(model.jobs[doc.id].map { $0.error == nil } ?? false)
+        if doc.siblingID != nil {
+            Button("Compare AGENTS.md and CLAUDE.md") { model.openCompare(doc) }
+        }
+        if model.isDirty(doc.id) {
+            Divider()
+            Button("Save") { model.save(doc.id) }
+            Button("Revert to Saved") { model.drafts[doc.id] = nil }
+        }
+        Divider()
+        Button("Reveal in Finder") { model.reveal(doc) }
+        Button("Open in Default Editor") { model.openExternally(doc) }
+        Button("Copy Path") { model.copyPath(doc) }
+    }
+}
+
+/// A text-only toolbar button. The system's capsule hugs bare text, so this gives it room at the sides.
+struct ToolbarTitle: View {
+    let title: LocalizedStringKey
+
+    init(_ title: LocalizedStringKey) { self.title = title }
+
+    var body: some View {
+        Text(title).padding(.horizontal, 6)
+    }
+}
+
 // MARK: Detail
 
 struct DocDetailView: View {
@@ -174,7 +209,7 @@ struct DocDetailView: View {
         .navigationSubtitle(model.isDirty(doc.id) ? L("%@ — Edited", doc.projectName) : doc.projectName)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button("Audit") { model.audit(doc) }
+                Button { model.audit(doc) } label: { ToolbarTitle("Audit") }
                     .disabled(model.jobs[doc.id].map { $0.error == nil } ?? false)
                     .help("Check this file against its project for outdated or conflicting instructions")
                 Button { model.showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }

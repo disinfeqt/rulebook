@@ -52,9 +52,9 @@ struct OverviewView: View {
                     .help("Create an AGENTS.md in a repository that has no instruction files")
                 }
                 if model.jobs.values.contains(where: { $0.kind == .audit && $0.error == nil }) {
-                    Button("Stop Audits") { model.stopAllAudits() }
+                    Button { model.stopAllAudits() } label: { ToolbarTitle("Stop Audits") }
                 } else {
-                    Button("Audit All…") { model.confirmAuditAll() }
+                    Button { model.confirmAuditAll() } label: { ToolbarTitle("Audit All…") }
                         .disabled(model.auditCandidates.isEmpty)
                         .help("Audit every file that is new or has changed since its last audit")
                 }
@@ -112,9 +112,7 @@ struct OverviewView: View {
         .contextMenu(forSelectionType: String.self) { ids in
             if let doc = ids.first.flatMap(model.doc) {
                 Button("Open") { model.select(doc.id, focusEditor: true) }
-                Button("Audit") { model.audit(doc) }
-                Divider()
-                Button("Reveal in Finder") { model.reveal(doc) }
+                DocMenu(doc: doc)
             }
         } primaryAction: { ids in
             if let id = ids.first { model.select(id, focusEditor: true) }

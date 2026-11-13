@@ -15,7 +15,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 LITERAL = r'"((?:[^"\\]|\\.)*)"'
 # Views and modifiers whose first string literal is a localization key.
 VIEWS = ("Text|Button|Label|Toggle|Section|Picker|TextField|LabeledContent|Menu|CommandMenu|"
-         "ContentUnavailableView|TableColumn|InspectorSection")
+         "ContentUnavailableView|TableColumn|InspectorSection|ToolbarTitle")
 MODIFIERS = "help|navigationTitle|navigationSubtitle"
 PATTERNS = [
     re.compile(r"\bLN?\(\s*(?:[^\"()]*?,\s*)?" + LITERAL),         # L("…") and LN(count, "…"

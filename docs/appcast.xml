@@ -3,13 +3,13 @@
   <channel>
     <title>Rulebook</title>
     <item>
-      <title>0.1.6</title>
-      <pubDate>Fri, 13 Nov 2026 16:23:48 +0000</pubDate>
-      <sparkle:version>7</sparkle:version>
-      <sparkle:shortVersionString>0.1.6</sparkle:shortVersionString>
+      <title>0.1.7</title>
+      <pubDate>Fri, 13 Nov 2026 16:46:24 +0000</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>0.1.7</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<p>The overview shows who reads each file, its size in tokens, and the repositories that have no instruction file yet. The sidebar&#x27;s search narrows it too.</p><p>New: Repeated Rules lists the rules written into more than one project, grouping the ones worded differently.</p><p>Fixes a crash when sorting the overview.</p>]]></description>
-      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.1.6/Rulebook.zip" length="3636660" type="application/octet-stream" sparkle:edSignature="tjtqDE/goVV5pu+w2+wudCzGit2KL5kJPFIah+tqah4dSTyjaSyytagwhFqFTm2Hrj2tZGF1VdSQin2UZnVeAA=="/>
+      <description><![CDATA[<p>New: Move to Global Files. In Repeated Rules, pick a rule you want in every project and Rulebook adds it to ~/.claude/CLAUDE.md and ~/.codex/AGENTS.md, then takes the copies out of each project as unsaved changes for you to review.</p><p>Repeated rules now start expanded, so you see every copy at once.</p>]]></description>
+      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.1.7/Rulebook.zip" length="3660196" type="application/octet-stream" sparkle:edSignature="m8kTQAFsn94nzo4dnDZhOuDKQQ60hP351wEXxdbyPXHNCOqOPyxpPrDEdmrPbQL6LTcKQVkF1JKBSfw69L58AQ=="/>
     </item>
   </channel>
 </rss>

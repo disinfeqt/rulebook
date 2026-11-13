@@ -90,40 +90,49 @@ struct WelcomeView: View {
 
 // MARK: Sidebar
 
+/// The sidebar reads like a contents page: names without icons, what belongs to a place set in under it, and
+/// anything to act on, with the counts, in a column at the trailing edge.
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
+    /// How far a row is set in under the one it belongs to.
+    private let inset: CGFloat = 14
 
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selection) {
             // What's in every place, by kind.
             Section {
-                Label("Rules", systemImage: "list.bullet")
+                Text("Rules")
                     .tag(SidebarItem.overview)
                 // A second way to look at the rules, so it sits under them.
-                Label("Repeated Rules", systemImage: "square.on.square")
+                Text("Repeated Rules")
+                    .padding(.leading, inset)
                     .tag(SidebarItem.repeatedRules)
                     .help("Rules written into more than one project. One you want everywhere could live in a global file instead.")
-                    .padding(.leading, 18)
-                Label("Skills", systemImage: "puzzlepiece.extension")
+                Text("Skills")
                     .tag(SidebarItem.skills)
                     .help("The skills in your projects and your home folder, and which agents load each one.")
             }
-            // Then each place with what it holds: its instruction files, and a row for its skills. A project with
-            // one file and no skills is one row, named for the project.
+            // Then each place with what it holds: its instruction files, and a row for its skills.
             let places = model.sidebarPlaces
             ForEach(places.filter(\.isGlobal)) { place in
-                Section(place.name) { contents(place, naming: .file) }
+                Section(place.name) {
+                    files(place, naming: .file)
+                    skills(place)
+                }
             }
             if places.contains(where: { !$0.isGlobal }) {
                 Section("Projects") {
                     ForEach(places.filter { !$0.isGlobal }) { place in
-                        if place.isFolder {
-                            Label(place.name, systemImage: "folder").selectionDisabled()
-                            contents(place, naming: .file).padding(.leading, 18)
+                        if place.fileCount == 1, place.project != nil {
+                            // A project with one file is that file, under the project's name.
+                            files(place, naming: .project)
                         } else {
-                            contents(place, naming: .project)
+                            // One with several, or with skills alone, is a name over what it holds.
+                            Text(place.name).foregroundStyle(.secondary).selectionDisabled()
+                            files(place, naming: .file).padding(.leading, inset)
                         }
+                        skills(place).padding(.leading, inset)
                     }
                 }
             }
@@ -141,27 +150,43 @@ struct SidebarView: View {
         }
     }
 
-    /// A place's instruction files, then its skills as one row: there can be dozens, so they open as a list.
-    @ViewBuilder private func contents(_ place: SidebarPlace, naming: DocRow.Naming) -> some View {
+    private func files(_ place: SidebarPlace, naming: DocRow.Naming) -> some View {
         ForEach(place.project?.docIDs ?? [], id: \.self) { id in
             if let doc = model.doc(id) {
                 DocRow(doc: doc, naming: naming).tag(SidebarItem.doc(id))
                     .contextMenu { DocMenu(doc: doc) }
             }
         }
+    }
+
+    /// A place's skills as one row with their count: there can be dozens, so they open as a list.
+    @ViewBuilder private func skills(_ place: SidebarPlace) -> some View {
         if let count = place.skills {
-            Label {
+            HStack(spacing: 6) {
                 Text("Skills")
-            } icon: {
-                if place.skillsNeedAttention {
-                    Image(systemName: Severity.warning.icon).foregroundStyle(Severity.warning.color)
-                } else {
-                    Image(systemName: "puzzlepiece.extension")
+                Spacer(minLength: 4)
+                if place.skillsNeedAttention { SidebarMark(severity: .warning) }
+                if count > 0 {
+                    Text(verbatim: count.formatted())
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
                 }
             }
-            .badge(count)
             .tag(SidebarItem.skillsIn(place.id))
         }
+    }
+}
+
+/// The sign at the trailing edge of a sidebar row that something there needs fixing.
+struct SidebarMark: View {
+    let severity: Severity
+
+    var body: some View {
+        Image(systemName: severity.icon)
+            .font(.caption)
+            .foregroundStyle(severity.color)
+            .frame(width: 16)
     }
 }
 
@@ -175,20 +200,13 @@ struct DocRow: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Label {
-                Text(naming == .file ? doc.title : doc.projectName).lineLimit(1).truncationMode(.middle)
-            } icon: {
-                if let issue = doc.topIssue {
-                    Image(systemName: issue.severity.icon).foregroundStyle(issue.severity.color)
-                } else {
-                    Image(systemName: "doc.text")
-                }
-            }
+            Text(naming == .file ? doc.title : doc.projectName).lineLimit(1).truncationMode(.middle)
             if model.isDirty(doc.id) {
                 Circle().fill(.secondary).frame(width: 6, height: 6)
                     .help("Unsaved changes")
             }
             Spacer(minLength: 4)
+            if let issue = doc.topIssue { SidebarMark(severity: issue.severity) }
             AuditBadge(doc: doc)
         }
         .help(doc.topIssue?.title ?? doc.primary.url.path.tildePath)

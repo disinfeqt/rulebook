@@ -21,8 +21,8 @@ struct SidebarPlace: Identifiable {
     /// How many skills its Skills row counts. Nil when it gets no such row.
     var skills: Int?
     var skillsNeedAttention = false
-    /// Shown as a name with rows under it, because it holds several files or has skills. Otherwise it's one row.
-    var isFolder = false
+    /// How many instruction files it has before any filter. With exactly one, the place's row is that file.
+    var fileCount = 0
 
     var isGlobal: Bool { id == "global" }
 }
@@ -273,13 +273,12 @@ final class AppModel {
     var sidebarPlaces: [SidebarPlace] {
         guard let scan else { return [] }
         let filtered = attentionOnly || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
-        struct Tally { var name = ""; var listed = false; var count = 0; var attention = false }
+        struct Tally { var name = ""; var count = 0; var attention = false }
         var tallies: [String: Tally] = [:]
         for entry in scan.skills {
             // An empty folder alone isn't worth a row in the sidebar. It's in the list of all skills.
             guard entry.docID != nil || entry.needsAttention else { continue }
             var tally = tallies[entry.projectID] ?? Tally(name: entry.projectName)
-            tally.listed = true
             if !filtered || isVisible(entry) {
                 if entry.docID != nil { tally.count += 1 }
                 tally.attention = tally.attention || entry.needsAttention
@@ -296,13 +295,14 @@ final class AppModel {
             let (count, attention) = skills(project.id)
             let files = scan.projects.first { $0.id == project.id }?.docIDs.count ?? 0
             places.append(SidebarPlace(id: project.id, name: project.name, project: project, skills: count,
-                                       skillsNeedAttention: attention, isFolder: files > 1 || tallies[project.id]?.listed == true))
+                                       skillsNeedAttention: attention, fileCount: files))
             seen.insert(project.id)
         }
         for (id, tally) in tallies where !seen.contains(id) {
             let (count, attention) = skills(id)
             guard count != nil else { continue }
-            places.append(SidebarPlace(id: id, name: tally.name, skills: count, skillsNeedAttention: attention, isFolder: true))
+            places.append(SidebarPlace(id: id, name: tally.name, skills: count, skillsNeedAttention: attention,
+                                       fileCount: scan.projects.first { $0.id == id }?.docIDs.count ?? 0))
         }
         return places.sorted {
             $0.isGlobal != $1.isGlobal ? $0.isGlobal : $0.name.localizedStandardCompare($1.name) == .orderedAscending

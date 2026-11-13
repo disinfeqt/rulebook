@@ -45,7 +45,7 @@
     </div>
   </div>
 
-  <figure><img src="screenshots/overview.webp" width="2720" height="1720" alt="Rulebook's overview: a table of every instruction file in a projects folder, with the ones that need attention at the top"></figure>
+  <figure><img src="screenshots/overview.webp" width="2720" height="1720" alt="Rulebook's overview: every instruction file in a projects folder, which agents read it, and the ones that need attention at the top"></figure>
 
   <section>
     <h2>See what each agent actually reads</h2>
@@ -64,6 +64,12 @@
     <h2>Compare and merge files that drifted</h2>
     <p>When two files have drifted apart, Compare puts them side by side. Merge asks your agent to combine them into one <code>AGENTS.md</code> and a <code>CLAUDE.md</code> that imports it. You review the result before anything is saved.</p>
     <figure><img src="screenshots/compare.webp" width="2720" height="1720" loading="lazy" alt="AGENTS.md and CLAUDE.md side by side, with the lines only one agent sees highlighted"></figure>
+  </section>
+
+  <section>
+    <h2>Find the rules you repeat across projects</h2>
+    <p>Repeated Rules lists the rules written into more than one project, like “Use pnpm, never npm or yarn” in eight <code>AGENTS.md</code> files, and groups the ones worded differently. Move one to your global files and Rulebook adds it to <code>~/.claude/CLAUDE.md</code> and <code>~/.codex/AGENTS.md</code>, then takes the copies out of each project for you to review.</p>
+    <figure><img src="screenshots/repeated.webp" width="2720" height="1720" loading="lazy" alt="Repeated Rules: a rule written into eight projects, one of them in different words, with where each copy is"></figure>
   </section>
 
   <section>

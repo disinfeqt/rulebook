@@ -45,7 +45,7 @@
     </div>
   </div>
 
-  <figure><img src="../screenshots/zh/overview.webp" width="2720" height="1720" alt="Rulebook 的概览：项目文件夹里所有指令文件的列表，需要处理的排在最前"></figure>
+  <figure><img src="../screenshots/zh/overview.webp" width="2720" height="1720" alt="Rulebook 的概览：项目文件夹里的所有指令文件、由哪些智能体读取，需要处理的排在最前"></figure>
 
   <section>
     <h2>看清每个智能体实际读到了什么</h2>
@@ -64,6 +64,12 @@
     <h2>对比并合并已经不一致的文件</h2>
     <p>两份文件出现差异时，“对比”会把它们并排显示。“合并”会让你的智能体把两者合成一份 <code>AGENTS.md</code>，以及一份导入它的 <code>CLAUDE.md</code>。存储之前，你可以先检查结果。</p>
     <figure><img src="../screenshots/zh/compare.webp" width="2720" height="1720" loading="lazy" alt="AGENTS.md 和 CLAUDE.md 并排显示，只有一方能读到的行被高亮"></figure>
+  </section>
+
+  <section>
+    <h2>找出在各个项目里重复的规则</h2>
+    <p>“重复的规则”会列出写在多个项目里的规则，比如八份 <code>AGENTS.md</code> 里都有的“Use pnpm, never npm or yarn”，措辞不同的也会归在一起。把一条规则移到全局文件后，Rulebook 会把它加到 <code>~/.claude/CLAUDE.md</code> 和 <code>~/.codex/AGENTS.md</code>，再从各个项目中移除，存储前你可以先检查。</p>
+    <figure><img src="../screenshots/zh/repeated.webp" width="2720" height="1720" loading="lazy" alt="重复的规则：一条写在八个项目里的规则，其中一份措辞不同，并列出每一份所在的位置"></figure>
   </section>
 
   <section>

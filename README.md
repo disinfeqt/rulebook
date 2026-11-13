@@ -32,7 +32,11 @@ When `CLAUDE.md` and `AGENTS.md` have drifted apart, Compare shows them side by 
 
 ## Repeated rules
 
-Repeated Rules lists the rules written into more than one project, such as "Always use pnpm" in seven `AGENTS.md` files. Rules that say the same thing in different words are grouped together, and each copy opens at its line. A rule you want everywhere could live in `~/.claude/CLAUDE.md` or `~/.codex/AGENTS.md` instead.
+Repeated Rules lists the rules written into more than one project, such as "Always use pnpm" in seven `AGENTS.md` files. Rules that say the same thing in different words are grouped together, and each copy opens at its line.
+
+Move to Global Files adds a rule to `~/.claude/CLAUDE.md`, which Claude Code reads in every project, and `~/.codex/AGENTS.md`, which Codex reads. The copies it covers come out of each project as unsaved changes for you to review; a copy that says more stays. Agents without a global file, like Cursor, stop getting the rule from those projects.
+
+![Repeated Rules: a rule in eight projects, one of them worded differently](docs/screenshots/repeated.webp)
 
 ## Audits
 

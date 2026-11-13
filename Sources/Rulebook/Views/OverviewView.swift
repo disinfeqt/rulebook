@@ -4,13 +4,14 @@ import SwiftUI
 struct OverviewRow: Identifiable {
     let doc: Doc
     let lines: Int
-    /// The audit's grade, worst first, and -1 when the file has no audit.
-    let grade: Int
+    /// How bad the file's audit is: 3 for serious findings, 2 for minor ones, 1 when clean and 0 with no audit.
+    let audit: Int
 
     var id: String { doc.id }
     var project: String { doc.projectName }
     var file: String { doc.title }
-    var urgency: Int { doc.topIssue.map { $0.severity.rawValue } ?? 0 }
+    /// 1 to 3 by the severity of the file's most serious issue, so a file with an issue sorts above one without.
+    var urgency: Int { doc.topIssue.map { $0.severity.rawValue + 1 } ?? 0 }
     var modified: Date { doc.primary.modified ?? .distantPast }
 }
 
@@ -69,16 +70,26 @@ struct OverviewView: View {
     }
 
     private func table(_ scan: ScanResult) -> some View {
+        // Each cell is hosted on its own, and on macOS it doesn't always get the window's environment: reading
+        // AppModel from it crashed when sorting moved the rows. So cells and the row menu are given the model.
+        let model = model
         let rows = scan.projects.flatMap { $0.docIDs.compactMap { scan.docs[$0] } }.map { doc in
-            OverviewRow(doc: doc, lines: MarkdownScan.stats(doc.primary.content).lines,
-                        grade: model.assessments[doc.id]?.grade.rawValue ?? -1)
+            let audit = switch model.assessments[doc.id]?.grade {
+            case .serious: 3
+            case .minor: 2
+            case .clean: 1
+            case nil: 0
+            }
+            return OverviewRow(doc: doc, lines: MarkdownScan.stats(doc.primary.content).lines, audit: audit)
         }
+        // Text columns sort A to Z first. The others start with what matters most: the most urgent, longest,
+        // most recently changed and worst audited files.
         return Table(rows.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Project", value: \.project)
                 .width(min: 90, ideal: 160, max: 280)
             TableColumn("File", value: \.file)
                 .width(min: 110, ideal: 180, max: 320)
-            TableColumn("Status", value: \.urgency) { row in
+            TableColumn("Status", sortUsing: KeyPathComparator(\OverviewRow.urgency, order: .reverse)) { row in
                 if let issue = row.doc.topIssue {
                     Label {
                         Text(issue.title)
@@ -93,18 +104,18 @@ struct OverviewView: View {
                 }
             }
             .width(min: 160, ideal: 360)
-            TableColumn("Lines", value: \.lines) { row in
+            TableColumn("Lines", sortUsing: KeyPathComparator(\OverviewRow.lines, order: .reverse)) { row in
                 Text(verbatim: "\(row.lines)").monospacedDigit().foregroundStyle(.secondary)
             }
             .width(50)
-            TableColumn("Modified", value: \.modified) { row in
+            TableColumn("Modified", sortUsing: KeyPathComparator(\OverviewRow.modified, order: .reverse)) { row in
                 if let date = row.doc.primary.modified {
                     Text(date.formatted(date: .abbreviated, time: .omitted)).foregroundStyle(.secondary)
                 }
             }
             .width(min: 96, ideal: 140, max: 180)
-            TableColumn("Audit", value: \.grade) { row in
-                AuditBadge(doc: row.doc)
+            TableColumn("Audit", sortUsing: KeyPathComparator(\OverviewRow.audit, order: .reverse)) { row in
+                AuditBadge(doc: row.doc).environment(model)
             }
             .width(50)
         }
@@ -112,7 +123,7 @@ struct OverviewView: View {
         .contextMenu(forSelectionType: String.self) { ids in
             if let doc = ids.first.flatMap(model.doc) {
                 Button("Open") { model.select(doc.id, focusEditor: true) }
-                DocMenu(doc: doc)
+                DocMenu(doc: doc).environment(model)
             }
         } primaryAction: { ids in
             if let id = ids.first { model.select(id, focusEditor: true) }

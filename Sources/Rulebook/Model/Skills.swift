@@ -431,20 +431,29 @@ enum SkillScan {
             let homes = ranking.filter { home in all.contains { $0.home == home } }
             let others = variants.enumerated().filter { $0.offset != i }.flatMap { $0.element.flatMap { [$0.primary] + $0.links } }
 
+            // Each note is a sentence that names who it's about, and there's none for the plain case, a folder
+            // read where it lies: the inspector shows the notes under one line that says who reads the skill.
             func access(_ wanted: [SkillHome], missing: String) -> Access {
+                let claude = wanted == [.claude]
                 if let c = all.first(where: { wanted.contains($0.home) }) {
                     if c.isSynced { return Access(reads: true, note: L("Synced from your claude.ai account")) }
-                    if c.home == .codex { return Access(reads: true, note: L("Only Codex, from %@", show(c.dir))) }
-                    if c.isSymlink { return Access(reads: true, note: L("Through the %@ symlink", show(c.dir))) }
-                    return Access(reads: true, note: mirrors.isEmpty ? L("Reads %@ directly", show(c.dir)) : L("Reads the %@ copy", show(c.dir)))
+                    if c.home == .codex { return Access(reads: true, note: L("Only Codex reads it, from %@", show(c.dir))) }
+                    if c.isSymlink {
+                        return Access(reads: true, note: claude ? L("Claude Code reads it through the %@ symlink", show(c.dir))
+                                                                : L("Other agents read it through the %@ symlink", show(c.dir)))
+                    }
+                    if mirrors.isEmpty { return Access(reads: true, note: "") }
+                    return Access(reads: true, note: claude ? L("Claude Code reads the %@ copy", show(c.dir))
+                                                            : L("Other agents read the %@ copy", show(c.dir)))
                 }
                 if let other = others.first(where: { wanted.contains($0.home) }) {
-                    return Access(reads: false, note: L("Gets the other version, in %@", show(other.dir)))
+                    return Access(reads: false, note: claude ? L("Claude Code gets the other version, in %@", show(other.dir))
+                                                             : L("Other agents get the other version, in %@", show(other.dir)))
                 }
                 return Access(reads: false, note: missing)
             }
-            let readers = Readers(claude: access([.claude], missing: L("It only looks in %@", folder(.claude))),
-                                  others: access([.agents, .codex], missing: L("They look in %@", folder(.agents))))
+            let readers = Readers(claude: access([.claude], missing: L("Claude Code only looks in %@", folder(.claude))),
+                                  others: access([.agents, .codex], missing: L("Other agents look in %@", folder(.agents))))
 
             var issues: [Issue] = []
             var identical = true
@@ -530,7 +539,7 @@ enum SkillScan {
                   mine.primary.resolvedURL != docs[i].primary.resolvedURL,
                   MarkdownScan.normalized(mine.primary.content) != MarkdownScan.normalized(docs[i].primary.content) else { continue }
             let path = mine.skill!.dir.path.tildePath
-            docs[i].readers.claude = Access(reads: false, note: L("Uses your personal skill instead, in %@", path))
+            docs[i].readers.claude = Access(reads: false, note: L("Claude Code uses your personal skill instead, in %@", path))
             docs[i].staticIssues.append(Issue(
                 id: "skill-shadowed", severity: .warning, title: L("Claude Code uses your personal skill instead"),
                 detail: L("When a project skill and a personal one share a name, Claude Code runs the personal one. `%@` differs from this one.", path)))

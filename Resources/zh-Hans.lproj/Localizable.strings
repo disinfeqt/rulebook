@@ -78,31 +78,27 @@
 
 /* Who reads a file */
 "Read By" = "读取方";
-"Codex and other agents" = "Codex 及其他智能体";
-"Through the %@ symlink" = "通过符号链接 %@";
-"Reads %@ directly" = "直接读取 %@";
-"Through %@ in %@" = "通过 %2$@ 中的 %1$@";
-"Imported by %@" = "由 %@ 导入";
-"Together with the %@ it imports" = "连同它导入的 %@ 一起读取";
-"They read %@ only" = "它们只读 %@";
-"Reads the %@ copy" = "读的是 %@ 这份副本";
-"Skipped, because %@ exists and doesn't import it" = "被跳过，因为存在 %@ 且它没有导入这个文件";
-"Reads %@ only" = "只读 %@";
-"They read %@ instead" = "它们读的是 %@";
-"But the AGENTS.md it imports is missing" = "但它导入的 AGENTS.md 不存在";
-"There's no AGENTS.md here" = "这里没有 AGENTS.md";
-"They look for AGENTS.md" = "它们只找 AGENTS.md";
-"Skipped, because %@ takes precedence" = "被跳过，因为 %@ 优先";
-"Reads AGENTS.md when there's no CLAUDE.md" = "没有 CLAUDE.md 时读取 AGENTS.md";
-"Loaded alongside %@" = "与 %@ 一同加载";
-"Skipped while a CLAUDE.md exists" = "存在 CLAUDE.md 时会被跳过";
-"They read the AGENTS.md at the folder root" = "它们读的是文件夹根目录的 AGENTS.md";
+"Claude Code reads it through the %@ symlink" = "Claude Code 通过符号链接 %@ 读取";
+"Other agents read it through the %@ symlink" = "其他智能体通过符号链接 %@ 读取";
+"Claude Code reads it through %@ in %@" = "Claude Code 通过 %2$@ 中的 %1$@ 读取";
+"Claude Code reads it through the import in %@" = "Claude Code 通过 %@ 里的导入读取";
+"Claude Code reads it together with the %@ it imports" = "Claude Code 连同它导入的 %@ 一起读取";
+"Other agents read %@ only" = "其他智能体只读 %@";
+"Claude Code reads the %@ copy" = "Claude Code 读的是 %@ 这份副本";
+"Other agents read the %@ copy" = "其他智能体读的是 %@ 这份副本";
+"Claude Code skips it, because %@ exists and doesn't import it" = "Claude Code 会跳过它，因为存在 %@ 且它没有导入这个文件";
+"Other agents read %@ instead" = "其他智能体读的是 %@";
+"The AGENTS.md it imports is missing" = "它导入的 AGENTS.md 不存在";
+"Other agents look for AGENTS.md" = "其他智能体只找 AGENTS.md";
+"Claude Code skips it, because %@ takes precedence" = "Claude Code 会跳过它，因为 %@ 优先";
+"Claude Code reads AGENTS.md when there's no CLAUDE.md" = "没有 CLAUDE.md 时，Claude Code 会读取 AGENTS.md";
+"Claude Code reads it alongside %@" = "Claude Code 会把它与 %@ 一同读取";
+"Claude Code skips it while a CLAUDE.md exists" = "存在 CLAUDE.md 时，Claude Code 会跳过它";
+"Other agents read the AGENTS.md at the folder root" = "其他智能体读的是文件夹根目录的 AGENTS.md";
 "Personal notes, read after CLAUDE.md" = "个人备注，在 CLAUDE.md 之后读取";
-"Only Claude Code reads it" = "只有 Claude Code 读取";
 "In every project" = "在所有项目中读取";
-"Reads %@ instead" = "读的是 %@";
+"Claude Code reads %@ instead" = "Claude Code 读的是 %@";
 "Codex reads %@ instead" = "Codex 读的是 %@";
-"Codex, in every project" = "Codex 在所有项目中读取";
 
 /* Issues and their fixes */
 "Issues" = "问题";
@@ -302,11 +298,12 @@
 
 /* Who loads a skill */
 "Synced from your claude.ai account" = "从你的 claude.ai 账户同步";
-"Only Codex, from %@" = "只有 Codex，从 %@ 读取";
-"Gets the other version, in %@" = "读到的是 %@ 里的另一个版本";
-"It only looks in %@" = "它只在 %@ 里查找";
-"They look in %@" = "它们在 %@ 里查找";
-"Uses your personal skill instead, in %@" = "改用你在 %@ 的个人技能";
+"Only Codex reads it, from %@" = "只有 Codex 从 %@ 读取";
+"Claude Code gets the other version, in %@" = "Claude Code 读到的是 %@ 里的另一个版本";
+"Other agents get the other version, in %@" = "其他智能体读到的是 %@ 里的另一个版本";
+"Claude Code only looks in %@" = "Claude Code 只在 %@ 里查找";
+"Other agents look in %@" = "其他智能体在 %@ 里查找";
+"Claude Code uses your personal skill instead, in %@" = "Claude Code 改用你在 %@ 的个人技能";
 
 /* Skill issues and their fixes */
 "Agents get different versions of this skill" = "不同智能体读到的是这个技能的不同版本";

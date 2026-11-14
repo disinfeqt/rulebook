@@ -11,8 +11,7 @@ struct InspectorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 InspectorSection("Read By") {
-                    ReaderRow(name: "Claude Code", access: doc.readers.claude)
-                    ReaderRow(name: L("Codex and other agents"), access: doc.readers.others)
+                    ReadBy(doc: doc)
                 }
                 if !issues.isEmpty {
                     InspectorSection("Issues") {
@@ -63,24 +62,21 @@ struct InspectorSection<Content: View>: View {
     }
 }
 
-struct ReaderRow: View {
-    let name: String
-    let access: Access
+/// Who reads the file, in the words the lists use, then only what isn't plain from that: how an agent gets to
+/// it when it doesn't read the file itself, or why one doesn't.
+struct ReadBy: View {
+    let doc: Doc
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: access.reads ? "checkmark" : "minus")
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(access.reads ? .secondary : .tertiary)
-                .frame(width: 14)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name).foregroundStyle(access.reads ? .primary : .secondary)
-                if !access.note.isEmpty {
-                    Text(access.note)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        VStack(alignment: .leading, spacing: 4) {
+            Text(doc.readBy)
+            // What's said of an agent that reads the file comes before what's said of one that doesn't.
+            let readers = [doc.readers.claude, doc.readers.others]
+            ForEach((readers.filter(\.reads) + readers.filter { !$0.reads }).map(\.note).filter { !$0.isEmpty }, id: \.self) { note in
+                Text(note)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

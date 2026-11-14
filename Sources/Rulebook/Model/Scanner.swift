@@ -175,8 +175,8 @@ enum Scanner {
             for f in globalFiles() {
                 let isClaude = f.kind == .claude
                 let readers = Readers(
-                    claude: Access(reads: isClaude, note: isClaude ? L("In every project") : L("Reads %@ instead", "~/.claude/CLAUDE.md")),
-                    others: Access(reads: !isClaude, note: isClaude ? L("Codex reads %@ instead", "~/.codex/AGENTS.md") : L("Codex, in every project")))
+                    claude: Access(reads: isClaude, note: isClaude ? L("In every project") : L("Claude Code reads %@ instead", "~/.claude/CLAUDE.md")),
+                    others: Access(reads: !isClaude, note: isClaude ? L("Codex reads %@ instead", "~/.codex/AGENTS.md") : L("In every project")))
                 let d = Doc(id: f.id, projectID: "global", projectName: L("Global"), locationDir: f.containingDir,
                             relativeDir: "", primary: f, mirrors: [], linkedFrom: [], role: .global,
                             status: .global, siblingID: nil, readers: readers, staticIssues: [])
@@ -290,26 +290,26 @@ enum Scanner {
             let c = C.displayName, a = A.displayName
             if C.isSymlink && C.resolvedURL.path == A.resolvedURL.path {
                 docs.append(make(A, linked: [LinkInfo(file: C, viaSymlink: true)], role: .unified, status: .linkedSymlink,
-                                 claude: Access(reads: true, note: L("Through the %@ symlink", c)),
-                                 others: Access(reads: true, note: L("Reads %@ directly", a))))
+                                 claude: Access(reads: true, note: L("Claude Code reads it through the %@ symlink", c)),
+                                 others: Access(reads: true, note: "")))
             } else if A.isSymlink && A.resolvedURL.path == C.resolvedURL.path {
                 docs.append(make(C, linked: [LinkInfo(file: A, viaSymlink: true)], role: .unified, status: .linkedSymlink,
-                                 claude: Access(reads: true, note: L("Reads %@ directly", c)),
-                                 others: Access(reads: true, note: L("Through the %@ symlink", a))))
+                                 claude: Access(reads: true, note: ""),
+                                 others: Access(reads: true, note: L("Other agents read it through the %@ symlink", a))))
             } else {
                 let imports = MarkdownScan.imports(in: C.content, baseDir: C.containingDir)
                 let toA = imports.filter { $0.exists && $0.resolved.resolvingSymlinksInPath().path == A.resolvedURL.path }
                 if !toA.isEmpty && MarkdownScan.isOnlyImports(C.content, removing: toA) {
                     docs.append(make(A, linked: [LinkInfo(file: C, viaSymlink: false)], role: .unified, status: .linkedImport,
-                                     claude: Access(reads: true, note: L("Through %@ in %@", toA[0].raw, c)),
-                                     others: Access(reads: true, note: L("Reads %@ directly", a))))
+                                     claude: Access(reads: true, note: L("Claude Code reads it through %@ in %@", toA[0].raw, c)),
+                                     others: Access(reads: true, note: "")))
                 } else if !toA.isEmpty {
                     docs.append(make(A, role: .sharedBase, status: .layered, sibling: C,
-                                     claude: Access(reads: true, note: L("Imported by %@", c)),
-                                     others: Access(reads: true, note: L("Reads %@ directly", a))))
+                                     claude: Access(reads: true, note: L("Claude Code reads it through the import in %@", c)),
+                                     others: Access(reads: true, note: "")))
                     docs.append(make(C, role: .claudeExtension, status: .layered, sibling: A,
-                                     claude: Access(reads: true, note: L("Together with the %@ it imports", a)),
-                                     others: Access(reads: false, note: L("They read %@ only", a))))
+                                     claude: Access(reads: true, note: L("Claude Code reads it together with the %@ it imports", a)),
+                                     others: Access(reads: false, note: L("Other agents read %@ only", a))))
                 } else if MarkdownScan.normalized(C.content) == MarkdownScan.normalized(A.content) {
                     let issue = Issue(
                         id: "duplicate", severity: .warning,
@@ -317,8 +317,8 @@ enum Scanner {
                         detail: L("%1$@ is a full copy of %2$@. Rulebook saves both, but any other editor will let them drift. Replace %1$@ with an `@%2$@` import to keep one source.", c, a),
                         fixes: [.replaceWithImport(claude: C.url)])
                     docs.append(make(A, mirrors: [C], role: .mirrored, status: .duplicated,
-                                     claude: Access(reads: true, note: L("Reads the %@ copy", c)),
-                                     others: Access(reads: true, note: L("Reads the %@ copy", a)),
+                                     claude: Access(reads: true, note: L("Claude Code reads the %@ copy", c)),
+                                     others: Access(reads: true, note: L("Other agents read the %@ copy", a)),
                                      issues: [issue]))
                 } else {
                     let cmp = LineDiff.compare(A.content, C.content)
@@ -329,11 +329,11 @@ enum Scanner {
                         detail: L("%1$@ doesn't import %2$@, so Claude Code reads only %1$@ and other agents read only %2$@. Lines only in %2$@: %3$d. Lines only in %1$@: %4$d.", c, a, cmp.onlyLeft, cmp.onlyRight),
                         fixes: [.compare, .reconcile])
                     docs.append(make(A, role: .diverged, status: .diverged(similarity: pct), sibling: C,
-                                     claude: Access(reads: false, note: L("Skipped, because %@ exists and doesn't import it", c)),
-                                     others: Access(reads: true, note: L("Reads %@ directly", a)), issues: [issue]))
+                                     claude: Access(reads: false, note: L("Claude Code skips it, because %@ exists and doesn't import it", c)),
+                                     others: Access(reads: true, note: ""), issues: [issue]))
                     docs.append(make(C, role: .diverged, status: .diverged(similarity: pct), sibling: A,
-                                     claude: Access(reads: true, note: L("Reads %@ only", c)),
-                                     others: Access(reads: false, note: L("They read %@ instead", a)), issues: [issue]))
+                                     claude: Access(reads: true, note: ""),
+                                     others: Access(reads: false, note: L("Other agents read %@ instead", a)), issues: [issue]))
                 }
             }
         } else if let C = claudes.first {
@@ -341,8 +341,8 @@ enum Scanner {
             let broken = imports.contains { !$0.exists && ($0.path as NSString).lastPathComponent.lowercased() == "agents.md" }
             if broken {
                 docs.append(make(C, role: .claudeOnly, status: .brokenImport,
-                                 claude: Access(reads: true, note: L("But the AGENTS.md it imports is missing")),
-                                 others: Access(reads: false, note: L("There's no AGENTS.md here"))))
+                                 claude: Access(reads: true, note: L("The AGENTS.md it imports is missing")),
+                                 others: Access(reads: false, note: "")))
             } else {
                 var issues: [Issue] = []
                 if !C.inDotClaude {
@@ -353,7 +353,7 @@ enum Scanner {
                 }
                 docs.append(make(C, role: .claudeOnly, status: .claudeOnly,
                                  claude: Access(reads: true, note: ""),
-                                 others: Access(reads: false, note: L("They look for AGENTS.md")), issues: issues))
+                                 others: Access(reads: false, note: L("Other agents look for AGENTS.md")), issues: issues))
             }
         } else if let A = agents.first {
             if let blocker = local.map({ $0.displayName }) ?? ancestorClaude(above: dir) {
@@ -362,31 +362,31 @@ enum Scanner {
                     detail: L("Claude Code reads AGENTS.md only when there's no CLAUDE.md or CLAUDE.local.md in this folder or above it, and %@ exists. Add a CLAUDE.md that imports AGENTS.md.", blocker),
                     fixes: [.createClaudeImport(dir: dir)])
                 docs.append(make(A, role: .agentsOnly, status: .agentsIgnored,
-                                 claude: Access(reads: false, note: L("Skipped, because %@ takes precedence", blocker)),
-                                 others: Access(reads: true, note: L("Reads %@ directly", A.displayName)), issues: [issue]))
+                                 claude: Access(reads: false, note: L("Claude Code skips it, because %@ takes precedence", blocker)),
+                                 others: Access(reads: true, note: ""), issues: [issue]))
             } else {
                 docs.append(make(A, role: .agentsOnly, status: .agentsOnly,
-                                 claude: Access(reads: true, note: L("Reads AGENTS.md when there's no CLAUDE.md")),
-                                 others: Access(reads: true, note: L("Reads %@ directly", A.displayName))))
+                                 claude: Access(reads: true, note: L("Claude Code reads AGENTS.md when there's no CLAUDE.md")),
+                                 others: Access(reads: true, note: "")))
             }
         }
 
         let baseStatus = docs.first?.status
         for extra in claudes.dropFirst() {
             docs.append(make(extra, role: .extra, status: baseStatus ?? .claudeOnly,
-                             claude: Access(reads: true, note: L("Loaded alongside %@", claudes[0].displayName)),
-                             others: Access(reads: false, note: L("They read %@ only", "AGENTS.md"))))
+                             claude: Access(reads: true, note: L("Claude Code reads it alongside %@", claudes[0].displayName)),
+                             others: Access(reads: false, note: L("Other agents read %@ only", "AGENTS.md"))))
         }
         for extra in agents.dropFirst() {
             let claudeReads = baseStatus == .agentsOnly
             docs.append(make(extra, role: .extra, status: baseStatus ?? .agentsOnly,
-                             claude: Access(reads: claudeReads, note: claudeReads ? L("Loaded alongside %@", "AGENTS.md") : L("Skipped while a CLAUDE.md exists")),
-                             others: Access(reads: false, note: L("They read the AGENTS.md at the folder root"))))
+                             claude: Access(reads: claudeReads, note: claudeReads ? L("Claude Code reads it alongside %@", "AGENTS.md") : L("Claude Code skips it while a CLAUDE.md exists")),
+                             others: Access(reads: false, note: L("Other agents read the AGENTS.md at the folder root"))))
         }
         if let local {
             docs.append(make(local, role: .local, status: .localOnly,
                              claude: Access(reads: true, note: L("Personal notes, read after CLAUDE.md")),
-                             others: Access(reads: false, note: L("Only Claude Code reads it"))))
+                             others: Access(reads: false, note: "")))
         }
         return docs
     }

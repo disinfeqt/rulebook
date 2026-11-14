@@ -15,7 +15,8 @@ let baseline: CGFloat = 276
 let capHeight: CGFloat = 748
 let midline: CGFloat = (baseline + capHeight) / 2
 let weight: CGFloat = 92          // the letter's stroke
-let ruleWeight: CGFloat = 10      // the guidelines
+let ruleWeight: CGFloat = 24      // the guidelines: a quarter of the letter's stroke, so they still show in the Dock
+let smallRuleWeight: CGFloat = 38 // and heavier where the icon is drawn a few millimetres wide
 let stemLeft: CGFloat = 316       // places the letter so it looks centered
 
 let letter: CGPath = {
@@ -44,12 +45,12 @@ let letter: CGPath = {
 }()
 
 /// The guidelines, from `minX` to `maxX`. The dashes are centered so both edges end the same way.
-func guides(from minX: CGFloat, to maxX: CGFloat) -> CGPath {
+func guides(from minX: CGFloat, to maxX: CGFloat, weight ruleWeight: CGFloat = ruleWeight) -> CGPath {
     let p = CGMutablePath()
     for y in [capHeight, baseline] {
         p.addRect(CGRect(x: minX, y: y - ruleWeight / 2, width: maxX - minX, height: ruleWeight))
     }
-    let dash: CGFloat = 44, period: CGFloat = 78
+    let dash = ruleWeight * 4.4, period = ruleWeight * 7.8
     let center = (minX + maxX) / 2
     var x = center - dash / 2 - period * ((center - minX) / period).rounded(.up)
     while x < maxX {
@@ -179,6 +180,28 @@ func mark(letter letterFill: String, rules ruleFill: String, ruleOpacity: String
 write(mark(letter: black.hex, rules: ruleBlue.hex), to: "docs/logo/mark.svg")
 write(mark(letter: white.hex, rules: ruleBlueOnDark.hex), to: "docs/logo/mark-on-dark.svg")
 write(mark(letter: "currentColor", rules: "currentColor", ruleOpacity: " opacity=\"0.35\""), to: "docs/logo/mark-one-color.svg")
+
+// The icon for small sizes, such as beside the name on the website and in a browser tab: the same tile with
+// heavier rules, and an outline, because on the site's paper a paper tile has no edge of its own.
+func smallIcon(top: Ink, bottom: Ink, letter letterFill: Ink, rules ruleFill: Ink, outline: String) -> String {
+    """
+    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Rulebook">
+      <defs>
+        <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="\(top.hex)"/><stop offset="1" stop-color="\(bottom.hex)"/></linearGradient>
+        <clipPath id="edge"><rect width="1024" height="1024" rx="232"/></clipPath>
+      </defs>
+      <g clip-path="url(#edge)">
+        <rect width="1024" height="1024" fill="url(#tile)"/>
+        <path d="\(svgData(guides(from: 0, to: canvas, weight: smallRuleWeight)))" fill="\(ruleFill.hex)"/>
+        <path d="\(svgData(letter))" fill="\(letterFill.hex)"/>
+      </g>
+      <rect x="16" y="16" width="992" height="992" rx="216" fill="none" stroke="\(outline)" stroke-width="32"/>
+    </svg>
+
+    """
+}
+write(smallIcon(top: paper, bottom: paperShade, letter: black, rules: ruleBlue, outline: "rgba(23,24,26,0.16)"), to: "docs/logo/icon-small.svg")
+write(smallIcon(top: night, bottom: nightShade, letter: white, rules: ruleBlueOnDark, outline: "rgba(247,246,243,0.16)"), to: "docs/logo/icon-small-dark.svg")
 
 // MARK: A picture of the finished icon, for the README
 

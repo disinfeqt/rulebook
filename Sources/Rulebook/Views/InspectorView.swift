@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Everything about the open file that isn't its text: who reads it, what's wrong with it, and its audit.
+/// What there is to do about the open file: what's wrong with it, a skill's other files, and its audit.
 struct InspectorView: View {
     let doc: Doc
     let issues: [Issue]
@@ -8,11 +8,21 @@ struct InspectorView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        let files = doc.skill?.files.isEmpty == false
+        let audit = model.jobs[doc.id] != nil || model.assessments[doc.id] != nil
+        // Who reads the file is in the bar under the editor. The inspector is for what there is to do about it.
+        if issues.isEmpty && !files && !audit {
+            Text("No Issues")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            sections
+        }
+    }
+
+    private var sections: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                InspectorSection("Read By") {
-                    ReadBy(doc: doc)
-                }
                 if !issues.isEmpty {
                     InspectorSection("Issues") {
                         ForEach(issues) { issue in
@@ -59,26 +69,6 @@ struct InspectorSection<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         Divider()
-    }
-}
-
-/// Who reads the file, in the words the lists use, then only what isn't plain from that: how an agent gets to
-/// it when it doesn't read the file itself, or why one doesn't.
-struct ReadBy: View {
-    let doc: Doc
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(doc.readBy)
-            // What's said of an agent that reads the file comes before what's said of one that doesn't.
-            let readers = [doc.readers.claude, doc.readers.others]
-            ForEach((readers.filter(\.reads) + readers.filter { !$0.reads }).map(\.note).filter { !$0.isEmpty }, id: \.self) { note in
-                Text(note)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
     }
 }
 

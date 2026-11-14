@@ -46,6 +46,18 @@ extension Doc {
         }
     }
 
+    /// The same, as the bar under the editor says it.
+    var readByPhrase: String {
+        if let skill, !readers.claude.reads, skill.homes == [.codex] { return L("Read by Codex") }
+        if role == .global { return primary.kind == .claude ? L("Read by Claude Code") : L("Read by Codex") }
+        switch (readers.claude.reads, readers.others.reads) {
+        case (true, true): return L("Read by all agents")
+        case (true, false): return L("Read by Claude Code")
+        case (false, true): return L("Read by other agents")
+        case (false, false): return L("Read by no agent")
+        }
+    }
+
     /// 3 when every agent reads the file, 2 for Claude Code alone, 1 for the others alone, 0 for none.
     var readByRank: Int { (readers.claude.reads ? 2 : 0) + (readers.others.reads ? 1 : 0) }
 }

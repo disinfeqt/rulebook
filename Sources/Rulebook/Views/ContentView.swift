@@ -414,6 +414,9 @@ struct StatusBar: View {
                 .truncationMode(.middle)
                 .textSelection(.enabled)
             Spacer()
+            // How an agent gets to the file, or why one doesn't, is a pointer away.
+            Text(doc.readByPhrase)
+                .help([doc.readers.claude, doc.readers.others].sorted { $0.reads && !$1.reads }.map(\.note).filter { !$0.isEmpty }.joined(separator: "\n"))
             Text(LN(stats.lines, "%d line", "%d lines"))
             Text(L("≈%d tokens", stats.tokens))
                 .help(doc.skill == nil ? L("A rough estimate of the context this file takes up in every session")

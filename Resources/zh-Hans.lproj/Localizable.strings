@@ -255,6 +255,12 @@
 "Tokens" = "Token";
 "Create AGENTS.md…" = "创建 AGENTS.md…";
 "All agents" = "所有智能体";
+"Read by all agents" = "所有智能体都会读取";
+"Read by Claude Code" = "仅 Claude Code 读取";
+"Read by other agents" = "仅其他智能体读取";
+"Read by Codex" = "仅 Codex 读取";
+"Read by no agent" = "没有智能体读取";
+"No Issues" = "没有问题";
 "Other agents" = "其他智能体";
 "No agent" = "没有智能体";
 "%d rule appears in more than one project" = "%d 条规则出现在多个项目里";

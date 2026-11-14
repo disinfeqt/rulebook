@@ -38,14 +38,14 @@
 
 <main class="column">
   <div class="opening">
-    <p class="lede">Rulebook 会找出所有项目里编程智能体读取的 <code>CLAUDE.md</code> 和 <code>AGENTS.md</code>，告诉你哪些已经互相不一致，哪些根本没被读到，哪些还是为去年的模型写的，然后帮你把它们修好。</p>
+    <p class="lede">Rulebook 会找出所有项目里编程智能体读取的 <code>CLAUDE.md</code>、<code>AGENTS.md</code> 和技能，告诉你哪些已经互相不一致，哪些根本没被读到，哪些还是为去年的模型写的，然后帮你把它们修好。</p>
     <div class="get">
       <a class="download" href="https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip">下载 macOS 版</a>
       <p>免费开源，需要 macOS 14 或更高版本。</p>
     </div>
   </div>
 
-  <figure><img src="../screenshots/zh/overview.webp" width="2720" height="1720" alt="Rulebook 的概览：项目文件夹里的所有指令文件、由哪些智能体读取，需要处理的排在最前"></figure>
+  <figure><img src="../screenshots/zh/overview.webp" width="2720" height="1720" alt="项目文件夹里的所有指令文件、由哪些智能体读取，需要处理的排在最前"></figure>
 
   <section>
     <h2>看清每个智能体实际读到了什么</h2>
@@ -57,7 +57,7 @@
       <dt>内容不一致</dt><dd>两份内容不同的文件，每个智能体都读不到另一方的规则。</dd>
       <dt>被跳过</dt><dd><code>AGENTS.md</code> 被 <code>CLAUDE.local.md</code> 或上级目录的 <code>CLAUDE.md</code> 取代，Claude Code 不会加载它。</dd>
     </dl>
-    <figure><img src="../screenshots/zh/editor.webp" width="2720" height="1720" loading="lazy" alt="正在编辑一份与 AGENTS.md 不一致的 CLAUDE.md，检查器里显示谁在读取这个文件，以及它有什么问题"></figure>
+    <figure><img src="../screenshots/zh/editor.webp" width="2720" height="1720" loading="lazy" alt="正在编辑一份与 AGENTS.md 不一致的 CLAUDE.md，检查器里列出它的问题，编辑器下方的状态栏显示谁在读取它"></figure>
   </section>
 
   <section>
@@ -70,6 +70,13 @@
     <h2>找出在各个项目里重复的规则</h2>
     <p>“重复的规则”会列出写在多个项目里的规则，比如八份 <code>AGENTS.md</code> 里都有的“Use pnpm, never npm or yarn”，措辞不同的也会归在一起。把一条规则移到全局文件后，Rulebook 会把它加到 <code>~/.claude/CLAUDE.md</code> 和 <code>~/.codex/AGENTS.md</code>，再从各个项目中移除，存储前你可以先检查。</p>
     <figure><img src="../screenshots/zh/repeated.webp" width="2720" height="1720" loading="lazy" alt="重复的规则：一条写在八个项目里的规则，其中一份措辞不同，并列出每一份所在的位置"></figure>
+  </section>
+
+  <section>
+    <h2>让每个智能体都用上每个技能</h2>
+    <p>把边栏从“规则”切换到“技能”，Rulebook 会列出每个项目和个人文件夹里的技能：由哪些智能体加载、从哪里安装，以及它的名称和描述在每次会话中占用多少上下文。</p>
+    <p>Claude Code 只在 <code>.claude/skills</code> 里查找，Codex 和大多数其他智能体在 <code>.agents/skills</code> 里查找。Rulebook 会找出只有一方能用到的技能、内容已经不一致的副本和失效的链接，并给出修复办法。用 <code>npx skills</code> 安装的技能按来源归在一起，同一个仓库的四十个技能只占一行。</p>
+    <figure><img src="../screenshots/zh/skills.webp" width="2720" height="1720" loading="lazy" alt="所有项目里的技能：由哪些智能体加载、从哪里安装，需要处理的排在最前"></figure>
   </section>
 
   <section>

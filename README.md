@@ -6,7 +6,7 @@
 
 A native macOS app for the agent instruction files across your projects. Point it at the folder that holds your projects and it finds every `CLAUDE.md`, `AGENTS.md` and `CLAUDE.local.md`, works out how they relate, and lets you edit, compare, merge and audit them in one place.
 
-![Overview: every instruction file in a projects folder, with the ones that need attention first](docs/screenshots/overview.webp)
+![Every instruction file in a projects folder, with the ones that need attention first](docs/screenshots/overview.webp)
 
 The interface comes in English and Simplified Chinese (简体中文). It follows the system language, or the one you pick in Settings, and audits are written in the same language.
 
@@ -22,7 +22,7 @@ The interface comes in English and Simplified Chinese (简体中文). It follows
 
 It also flags broken `@imports`, stray `@mentions` that Claude Code would try to import, tool-written blocks (such as `convex-ai` or `nextjs-agent-rules`) that are loaded twice or differ between projects, files over 200 lines, and titles left over from copied files. Most issues come with a one-click fix.
 
-![Editing a diverged CLAUDE.md. The inspector shows who reads the file and what's wrong with it](docs/screenshots/editor.webp)
+![Editing a diverged CLAUDE.md. The inspector lists what's wrong with it, and the bar under the editor says who reads it](docs/screenshots/editor.webp)
 
 Rulebook watches the projects folder and your global folders, so a file changed in another editor, or a skill installed from a terminal, shows up within a second or so. Rescan (⌘R) scans on demand.
 
@@ -51,6 +51,8 @@ A switch at the top of the sidebar turns it from rules to skills: the same proje
 | Different versions | `.claude/skills` and `.agents/skills` hold folders that differ. Compare them, then keep one. |
 
 It also flags links that point nowhere, a SKILL.md without a description, links to files the skill doesn't have, a project skill hidden by a personal one of the same name, and copies that differ from the same skill in other projects. The skills a project got from one source are one row that opens, so forty from one repository don't fill the list. A skill opens in the editor like any other file. Select several skills, or a row that stands for a set of them, and Delete moves them to the Trash, where the folders a fix replaces go too.
+
+![The skills in every project: who loads each, where it was installed from, and the ones that need attention first](docs/screenshots/skills.webp)
 
 ## Audits
 

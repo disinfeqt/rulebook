@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rulebook: keep every agent on the same page</title>
-<meta name="description" content="A Mac app that finds every CLAUDE.md and AGENTS.md across your projects, shows which have drifted apart, and helps you fix them.">
+<meta name="description" content="A Mac app that finds every CLAUDE.md, AGENTS.md and skill across your projects, shows which have drifted apart, and helps you fix them.">
 <meta property="og:title" content="Rulebook: keep every agent on the same page">
-<meta property="og:description" content="A Mac app that finds every CLAUDE.md and AGENTS.md across your projects, shows which have drifted apart, and helps you fix them.">
+<meta property="og:description" content="A Mac app that finds every CLAUDE.md, AGENTS.md and skill across your projects, shows which have drifted apart, and helps you fix them.">
 <meta property="og:image" content="https://rulebook.duxi.ao/og-image.webp">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -38,14 +38,14 @@
 
 <main class="column">
   <div class="opening">
-    <p class="lede">Rulebook finds every <code>CLAUDE.md</code> and <code>AGENTS.md</code> your coding agents read, across all your projects. It shows which ones have drifted apart, which ones an agent never sees, and which were written for last year's models. Then it helps you fix them.</p>
+    <p class="lede">Rulebook finds every <code>CLAUDE.md</code>, <code>AGENTS.md</code> and skill your coding agents read, across all your projects. It shows which ones have drifted apart, which ones an agent never sees, and which were written for last year's models. Then it helps you fix them.</p>
     <div class="get">
       <a class="download" href="https://github.com/disinfeqt/rulebook/releases/latest/download/Rulebook.zip">Download for macOS</a>
       <p>Free and open source. Needs macOS 14 or later.</p>
     </div>
   </div>
 
-  <figure><img src="screenshots/overview.webp" width="2720" height="1720" alt="Rulebook's overview: every instruction file in a projects folder, which agents read it, and the ones that need attention at the top"></figure>
+  <figure><img src="screenshots/overview.webp" width="2720" height="1720" alt="Every instruction file in a projects folder, which agents read it, and the ones that need attention at the top"></figure>
 
   <section>
     <h2>See what each agent actually reads</h2>
@@ -57,7 +57,7 @@
       <dt>Diverged</dt><dd>Two files with different content, so each agent misses rules the other one gets.</dd>
       <dt>Skipped</dt><dd>An <code>AGENTS.md</code> that Claude Code never loads, because a <code>CLAUDE.local.md</code> or a parent <code>CLAUDE.md</code> takes its place.</dd>
     </dl>
-    <figure><img src="screenshots/editor.webp" width="2720" height="1720" loading="lazy" alt="Editing a CLAUDE.md that has diverged from its AGENTS.md. The inspector shows who reads the file and what is wrong with it"></figure>
+    <figure><img src="screenshots/editor.webp" width="2720" height="1720" loading="lazy" alt="Editing a CLAUDE.md that has diverged from its AGENTS.md. The inspector lists what is wrong with it, and the bar under the editor says who reads it"></figure>
   </section>
 
   <section>
@@ -70,6 +70,13 @@
     <h2>Find the rules you repeat across projects</h2>
     <p>Repeated Rules lists the rules written into more than one project, like “Use pnpm, never npm or yarn” in eight <code>AGENTS.md</code> files, and groups the ones worded differently. Move one to your global files and Rulebook adds it to <code>~/.claude/CLAUDE.md</code> and <code>~/.codex/AGENTS.md</code>, then takes the copies out of each project for you to review.</p>
     <figure><img src="screenshots/repeated.webp" width="2720" height="1720" loading="lazy" alt="Repeated Rules: a rule written into eight projects, one of them in different words, with where each copy is"></figure>
+  </section>
+
+  <section>
+    <h2>Get every skill to every agent</h2>
+    <p>Switch the sidebar from Rules to Skills and Rulebook lists the skills in each project and in your home folder: which agents load each one, where it was installed from, and what its name and description cost in every session.</p>
+    <p>Claude Code only looks in <code>.claude/skills</code>. Codex and most other agents look in <code>.agents/skills</code>. Rulebook finds the skills only one of them gets, the copies that have drifted apart and the links that point nowhere, and offers the fix. Skills installed with <code>npx skills</code> are grouped by where they came from, so forty from one repository are one row.</p>
+    <figure><img src="screenshots/skills.webp" width="2720" height="1720" loading="lazy" alt="The skills in every project: which agents load each one, where it was installed from, and the ones that need attention at the top"></figure>
   </section>
 
   <section>

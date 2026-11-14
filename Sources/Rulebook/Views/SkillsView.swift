@@ -46,18 +46,18 @@ struct SkillsView: View {
     /// The place whose skills to list: a project's path or "global". Nil for all of them.
     var scope: String? = nil
     @Environment(AppModel.self) private var model
-    /// The columns of the list of every skill, and of one place's list, which leaves out the Project column:
-    /// the sidebar already names the place.
+    /// The columns of the list of every skill, which starts with the project, and of one place's list, which
+    /// starts with the skill: the sidebar already names the place. So its second column, the skill again, is hidden.
     @State private var allColumns = TableColumnCustomization<SkillRow>()
     @State private var placeColumns: TableColumnCustomization<SkillRow> = {
         var columns = TableColumnCustomization<SkillRow>()
-        columns[visibility: "project"] = .hidden
+        columns[visibility: "skill"] = .hidden
         return columns
     }()
     /// The selected rows, by their keys: positions would point at other skills after a rescan.
     @State private var selection: Set<String> = []
     @State private var sortOrder = [KeyPathComparator(\SkillRow.urgency, order: .reverse),
-                                    KeyPathComparator(\SkillRow.name)]
+                                    KeyPathComparator(\SkillRow.project)]
     /// In the list of every skill, sets start closed, so a project with forty from one source is one row. In one
     /// place's list they start open: its skills are what you came for. These are the ones toggled since.
     @State private var toggled: Set<String> = []
@@ -165,10 +165,12 @@ struct SkillsView: View {
 
     /// The rows in the order the table shows them, each given its position as its identity.
     private func arranged(_ rows: [SkillRow]) -> [SkillRow] {
-        rows.sorted(using: sortOrder).enumerated().map { index, row in
+        // By name where the chosen order doesn't tell two rows apart, as within one project.
+        let order = sortOrder + [KeyPathComparator(\SkillRow.name)]
+        return rows.sorted(using: order).enumerated().map { index, row in
             var row = row
             row.id = String(index)
-            row.children = row.children.sorted(using: sortOrder).enumerated().map { at, child in
+            row.children = row.children.sorted(using: order).enumerated().map { at, child in
                 var child = child
                 child.id = "\(index).\(at)"
                 return child
@@ -181,6 +183,22 @@ struct SkillsView: View {
     private func skills(in rows: [SkillRow]) -> [SkillRow] {
         var seen = Set<String>()
         return rows.flatMap { $0.isGroup ? $0.children : [$0] }.filter { seen.insert($0.key).inserted }
+    }
+
+    /// A skill's name, or how many skills a row stands for.
+    private static func name(_ row: SkillRow, _ model: AppModel) -> some View {
+        HStack(spacing: 6) {
+            if row.isGroup {
+                Text(LN(row.children.count, "%d skill", "%d skills"))
+            } else {
+                Text(row.name).foregroundStyle(row.doc == nil ? HierarchicalShapeStyle.secondary : .primary)
+            }
+            if let doc = row.doc, model.isDirty(doc.id) {
+                Circle().fill(.secondary).frame(width: 6, height: 6).help("Unsaved changes")
+            }
+        }
+        .lineLimit(1)
+        .help(row.description)
     }
 
     private func table(_ rows: [SkillRow]) -> some View {
@@ -206,30 +224,24 @@ struct SkillsView: View {
         }
         return Table(of: SkillRow.self, selection: selected, sortOrder: $sortOrder,
                      columnCustomization: scope == nil ? $allColumns : $placeColumns) {
-            TableColumn("Skill", value: \.name) { row in
-                HStack(spacing: 6) {
-                    if row.isGroup {
-                        Text(LN(row.children.count, "%d skill", "%d skills"))
-                    } else {
-                        Text(row.name).foregroundStyle(row.doc == nil ? HierarchicalShapeStyle.secondary : .primary)
-                    }
-                    if let doc = row.doc, model.isDirty(doc.id) {
-                        Circle().fill(.secondary).frame(width: 6, height: 6).help("Unsaved changes")
-                    }
+            // The first column is the one rows open under, so it can't be a hidden one: it says the project in the
+            // list of every skill, as the first column of Rules does, and the skill in one place's list.
+            TableColumn(scope == nil ? Text("Project") : Text("Skill"), value: scope == nil ? \SkillRow.project : \SkillRow.name) { row in
+                if scope != nil {
+                    Self.name(row, model)
+                } else if !row.isChild {
+                    Text(row.project).lineLimit(1).truncationMode(.middle)
                 }
-                .lineLimit(1)
-                .help(row.description)
+            }
+            .width(min: 100, ideal: scope == nil ? 170 : 220, max: 360)
+            .customizationID("lead")
+            .disabledCustomizationBehavior(.visibility)
+            TableColumn("Skill", value: \.name) { row in
+                Self.name(row, model)
             }
             .width(min: 120, ideal: 220, max: 360)
             .customizationID("skill")
             .disabledCustomizationBehavior(.visibility)
-            TableColumn("Project", value: \.project) { row in
-                if !row.isChild {
-                    Text(row.project).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                }
-            }
-            .width(min: 90, ideal: 150, max: 260)
-            .customizationID("project")
             TableColumn("Installed From", value: \.source) { row in
                 if !row.isChild, !row.source.isEmpty {
                     Text(row.source).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)

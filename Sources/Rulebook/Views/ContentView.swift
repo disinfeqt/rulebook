@@ -170,19 +170,20 @@ struct SidebarView: View {
     /// The places that have skills, each with its count. A click opens that place's skills.
     @ViewBuilder private var skills: some View {
         let places = model.skillPlaces
+        let inProjects = places.filter { !$0.isGlobal }
         Section {
-            SkillPlaceRow(name: L("All Projects"), count: places.reduce(0) { $0 + $1.count },
-                          needsAttention: places.contains(where: \.needsAttention))
+            SkillPlaceRow(name: L("All Projects"), count: inProjects.reduce(0) { $0 + $1.count },
+                          needsAttention: inProjects.contains(where: \.needsAttention))
                 .tag(SidebarItem.skills)
-                .help("The skills in your projects and your home folder, and which agents load each one.")
+                .help("The skills in your projects, and which agents load each one.")
             ForEach(places.filter(\.isGlobal)) { place in
                 SkillPlaceRow(name: place.name, count: place.count, needsAttention: place.needsAttention)
                     .tag(SidebarItem.skillsIn(place.id))
             }
         }
-        if places.contains(where: { !$0.isGlobal }) {
+        if !inProjects.isEmpty {
             Section("Projects") {
-                ForEach(places.filter { !$0.isGlobal }) { place in
+                ForEach(inProjects) { place in
                     SkillPlaceRow(name: place.name, count: place.count, needsAttention: place.needsAttention)
                         .tag(SidebarItem.skillsIn(place.id))
                 }

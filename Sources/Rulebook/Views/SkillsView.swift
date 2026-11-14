@@ -40,10 +40,10 @@ struct SkillRow: Identifiable {
     var attention: Int { children.filter { $0.urgency > 0 }.count }
 }
 
-/// The skills in the projects and in the home folder, or those of one place: who loads each and what's wrong
+/// The skills in the projects, or those of one place: who loads each and what's wrong
 /// with it.
 struct SkillsView: View {
-    /// The place whose skills to list: a project's path or "global". Nil for all of them.
+    /// The place whose skills to list: a project's path or "global". Nil for those of every project.
     var scope: String? = nil
     @Environment(AppModel.self) private var model
     /// The columns of the list of every skill, which starts with the project, and of one place's list, which
@@ -69,11 +69,11 @@ struct SkillsView: View {
         Group {
             if let scan = model.scan {
                 let rows = rows(scan)
-                if scan.skills.isEmpty {
+                if entries(scan).isEmpty {
                     ContentUnavailableView {
                         Label("No Skills", systemImage: "puzzlepiece.extension")
                     } description: {
-                        Text(L("There's no .claude/skills or .agents/skills folder in %@ or in your home folder.", scan.root.path.tildePath))
+                        Text(L("There's no .claude/skills or .agents/skills folder in %@.", scan.root.path.tildePath))
                     }
                 } else if rows.isEmpty && !model.searchText.isEmpty {
                     ContentUnavailableView.search(text: model.searchText)
@@ -98,8 +98,10 @@ struct SkillsView: View {
         }
     }
 
+    /// The skills of the place, or of every project. The home folder isn't a project: its skills are a list
+    /// of their own.
     private func entries(_ scan: ScanResult) -> [SkillEntry] {
-        scope == nil ? scan.skills : scan.skills.filter { $0.projectID == scope }
+        scan.skills.filter { scope == nil ? $0.projectID != "global" : $0.projectID == scope }
     }
 
     /// The page is called Skills, or for one place, by the place.

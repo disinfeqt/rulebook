@@ -283,8 +283,8 @@
 "Skills" = "技能";
 "Skill" = "技能";
 "No Skills" = "没有技能";
-"The skills in your projects and your home folder, and which agents load each one." = "各个项目和个人文件夹里的技能，以及每个技能会被哪些智能体加载。";
-"There's no .claude/skills or .agents/skills folder in %@ or in your home folder." = "%@ 和你的个人文件夹里都没有 .claude/skills 或 .agents/skills 文件夹。";
+"The skills in your projects, and which agents load each one." = "各个项目里的技能，以及每个技能会被哪些智能体加载。";
+"There's no .claude/skills or .agents/skills folder in %@." = "%@ 里没有 .claude/skills 或 .agents/skills 文件夹。";
 "%d skill" = "%d 个技能";
 "%d skills" = "%d 个技能";
 "%d skill needs attention" = "%d 个技能需要处理";

@@ -29,7 +29,7 @@ struct OverviewView: View {
     var body: some View {
         Group {
             if let scan = model.scan {
-                if scan.projects.isEmpty && scan.missing.isEmpty {
+                if !scan.projects.contains(where: { !$0.isGlobal }) && scan.missing.isEmpty {
                     ContentUnavailableView {
                         Label("No Instruction Files", systemImage: "doc.text.magnifyingglass")
                     } description: {
@@ -70,15 +70,16 @@ struct OverviewView: View {
 
     private var subtitle: String {
         let path = model.rootPath?.tildePath ?? ""
-        let attention = model.scan?.docs.values.filter { $0.skill == nil && $0.needsAttention }.count ?? 0
+        let attention = model.scan?.docs.values.filter { $0.skill == nil && $0.role != .global && $0.needsAttention }.count ?? 0
         return attention == 0 ? path : path + " — " + LN(attention, "%d file needs attention", "%d files need attention")
     }
 
-    /// The files the sidebar shows, so its search field and attention filter narrow the table too, followed by
-    /// the repositories that have no instruction file.
+    /// The projects' files the sidebar shows, so its search field and attention filter narrow the table too,
+    /// followed by the repositories that have no instruction file. The home folder's files aren't a project's:
+    /// they're in the sidebar under Global.
     private func rows(_ scan: ScanResult) -> [OverviewRow] {
         var rows: [OverviewRow] = []
-        for project in model.visibleProjects {
+        for project in model.visibleProjects where !project.isGlobal {
             let several = (scan.projects.first { $0.id == project.id }?.docIDs.count ?? 0) > 1
             for doc in project.docIDs.compactMap(model.doc) {
                 let stats = model.stats(for: doc)
@@ -90,7 +91,7 @@ struct OverviewView: View {
                 }
                 rows.append(OverviewRow(
                     id: doc.id, project: doc.projectName,
-                    path: several || !doc.relativeDir.isEmpty || doc.role == .global ? doc.title : nil,
+                    path: several || !doc.relativeDir.isEmpty ? doc.title : nil,
                     doc: doc, folder: doc.locationDir, readBy: doc.readByRank, tokens: stats.tokens, lines: stats.lines,
                     audit: audit, urgency: doc.topIssue.map { $0.severity.rawValue + 1 } ?? 0,
                     modified: doc.primary.modified ?? .distantPast))

@@ -3,13 +3,13 @@
   <channel>
     <title>Rulebook</title>
     <item>
-      <title>0.2.0</title>
-      <pubDate>Sat, 14 Nov 2026 04:33:33 +0000</pubDate>
-      <sparkle:version>9</sparkle:version>
-      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <title>0.2.1</title>
+      <pubDate>Sat, 14 Nov 2026 04:39:29 +0000</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<p>New: Skills. A switch at the top of the sidebar turns it from rules to skills. It lists every skill in your projects and your home folder: which agents load it, where it was installed from, and what its name and description cost in every session. Rulebook finds the skills only one agent gets, the copies that have drifted apart and the links that point nowhere, and offers the fix. Skills from one source are one row that opens, and several can go to the Trash at once.</p><p>Who reads a file is now in the bar under the editor. The inspector keeps to what there is to do about the file, in larger text that is written out in full.</p><p>Switching between files and projects is faster, and the lists follow changes made on disk without a rescan.</p><p>The app now shows its window when it is started in the background.</p>]]></description>
-      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.2.0/Rulebook.zip" length="4029791" type="application/octet-stream" sparkle:edSignature="RBCqPfOdcjFytW11v+Vasea8SoqR/WYehLtOVTZJk4y/sklkdJ5dCAqX4Y8dhA+WS7agIq+i0wOrMbpuBdd5CQ=="/>
+      <description><![CDATA[<p>The app icon&#x27;s ruled lines are heavier, so they show in the Dock and at other small sizes.</p>]]></description>
+      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.2.1/Rulebook.zip" length="4011981" type="application/octet-stream" sparkle:edSignature="t7W25VY8i9j6xJjS+R7YnWvWVClS5WDtUA92hOZGCOVERYDB3OgAMtb1sr+AIsOtH9Z7NJdR5J92wMz+tdNeAw=="/>
     </item>
   </channel>
 </rss>

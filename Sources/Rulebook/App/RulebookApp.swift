@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        ensureMainWindow(tries: 12)
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--select"), i + 1 < args.count {
             let path = URL(fileURLWithPath: (args[i + 1] as NSString).expandingTildeInPath).standardizedFileURL.path
@@ -45,37 +46,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // and falls back to an offscreen render, which leaves them blank.
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             let dir = URL(fileURLWithPath: (args[i + 1] as NSString).expandingTildeInPath, isDirectory: true)
-            // Come to the front first, so the windows are drawn as active ones.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                NSRunningApplication.current.activate(options: [.activateAllWindows])
-                // The main window opens the size it was last left on this Mac. Pictures get the default size,
-                // and the saved one is left alone.
-                for window in NSApp.windows where window.identifier?.rawValue.hasPrefix("main") == true {
-                    window.setFrameAutosaveName("")
-                    var frame = window.frame
-                    frame.origin.y += frame.height - 860
-                    frame.size = NSSize(width: 1360, height: 860)
-                    window.setFrame(frame, display: true)
+            // Once the window is open it gets a moment for its first scan and whatever the other options open,
+            // and the pictures are taken.
+            waitForMainWindow(tries: 120) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    // The main window opens the size it was last left on this Mac. Pictures get the default
+                    // size, and the saved one is left alone.
+                    for window in NSApp.windows where window.identifier?.rawValue.hasPrefix("main") == true {
+                        window.setFrameAutosaveName("")
+                        var frame = window.frame
+                        frame.origin.y += frame.height - 860
+                        frame.size = NSSize(width: 1360, height: 860)
+                        window.setFrame(frame, display: true)
+                    }
                 }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) {
-                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                for (n, window) in NSApp.windows.filter({ $0.isVisible }).enumerated() {
-                    let url = dir.appendingPathComponent("window-\(n).png")
-                    let capture = Process()
-                    capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-                    capture.arguments = ["-x", "-o", "-l", "\(window.windowNumber)", url.path]
-                    try? capture.run()
-                    capture.waitUntilExit()
-                    if FileManager.default.fileExists(atPath: url.path) { continue }
-                    guard let view = window.contentView?.superview ?? window.contentView,
-                          let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
-                    view.cacheDisplay(in: view.bounds, to: rep)
-                    try? rep.representation(using: .png, properties: [:])?.write(to: url)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    for (n, window) in NSApp.windows.filter({ $0.isVisible }).enumerated() {
+                        let url = dir.appendingPathComponent("window-\(n).png")
+                        let capture = Process()
+                        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                        capture.arguments = ["-x", "-o", "-l", "\(window.windowNumber)", url.path]
+                        try? capture.run()
+                        capture.waitUntilExit()
+                        if FileManager.default.fileExists(atPath: url.path) { continue }
+                        guard let view = window.contentView?.superview ?? window.contentView,
+                              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+                        view.cacheDisplay(in: view.bounds, to: rep)
+                        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+                    }
+                    exit(0)  // terminate(_:) is refused while a sheet is open
                 }
-                exit(0)  // terminate(_:) is refused while a sheet is open
             }
         }
+    }
+
+    private var hasMainWindow: Bool {
+        NSApp.windows.contains { ($0.isVisible || $0.isMiniaturized) && $0.identifier?.rawValue.hasPrefix("main") == true }
+    }
+
+    /// Started while another app is in use, from a terminal or by a tool, the app isn't let to come forward, and
+    /// SwiftUI then doesn't open its window until the Dock icon is clicked. So for its first few seconds the app
+    /// asks for its window the way that click does: with the event the Dock sends.
+    private func ensureMainWindow(tries: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            guard !self.hasMainWindow, tries > 0 else { return }
+            let reopen = NSAppleEventDescriptor(
+                eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEReopenApplication),
+                targetDescriptor: .currentProcess(), returnID: AEReturnID(kAutoGenerateReturnID),
+                transactionID: AETransactionID(kAnyTransactionID))
+            _ = try? reopen.sendEvent(options: .noReply, timeout: 1)
+            self.ensureMainWindow(tries: tries - 1)
+        }
+    }
+
+    /// Calls `then` once the main window is on screen, asking to come to the front until it is, so the windows
+    /// are drawn as active ones. It gives up after `tries` quarter seconds and calls `then` anyway.
+    private func waitForMainWindow(tries: Int, then: @escaping () -> Void) {
+        NSRunningApplication.current.activate(options: [.activateAllWindows])
+        if hasMainWindow || tries == 0 { then(); return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { self.waitForMainWindow(tries: tries - 1, then: then) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

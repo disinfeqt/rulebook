@@ -3,13 +3,13 @@
   <channel>
     <title>Rulebook</title>
     <item>
-      <title>0.2.1</title>
-      <pubDate>Sat, 14 Nov 2026 04:39:29 +0000</pubDate>
-      <sparkle:version>10</sparkle:version>
-      <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+      <title>0.2.2</title>
+      <pubDate>Sun, 15 Nov 2026 00:26:32 +0000</pubDate>
+      <sparkle:version>11</sparkle:version>
+      <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<p>The app icon&#x27;s ruled lines are heavier, so they show in the Dock and at other small sizes.</p>]]></description>
-      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.2.1/Rulebook.zip" length="4011981" type="application/octet-stream" sparkle:edSignature="t7W25VY8i9j6xJjS+R7YnWvWVClS5WDtUA92hOZGCOVERYDB3OgAMtb1sr+AIsOtH9Z7NJdR5J92wMz+tdNeAw=="/>
+      <description><![CDATA[<p>Audits are shorter: a verdict, Review Suggested Edits right under it, and each finding in a line or two. Audits made before this version keep their longer text until the file is audited again.</p>]]></description>
+      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.2.2/Rulebook.zip" length="4005981" type="application/octet-stream" sparkle:edSignature="8qXFB2Beiv1yriEXrxk9Y1WluMrSF4pvrKs5ouhgJBhPnaPAJfd0Wfhdtw6ZZJ/Ypoml++eDTzwG0AcXsvbGBg=="/>
     </item>
   </channel>
 </rss>

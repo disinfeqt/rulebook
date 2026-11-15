@@ -59,7 +59,7 @@ struct MarkdownEditor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSTextView.scrollableTextView()
+        let scroll = RulesTextView.scrollableTextView()
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         scroll.drawsBackground = true
@@ -109,6 +109,7 @@ struct MarkdownEditor: NSViewRepresentable {
             coordinator.enter(docID, with: text)
             tv.setSelectedRange(NSRange(location: 0, length: 0))
             tv.scrollToBeginningOfDocument(nil)
+            tv.needsDisplay = true
             return
         }
         guard tv.string != text else { return }
@@ -121,6 +122,7 @@ struct MarkdownEditor: NSViewRepresentable {
         }
         MarkdownHighlighter.highlight(tv.textStorage!, baseDir: baseDir, isSkill: isSkill)
         coordinator.isApplyingExternalChange = false
+        tv.needsDisplay = true
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -157,6 +159,95 @@ struct MarkdownEditor: NSViewRepresentable {
     }
 }
 
+/// The editor's text view, with each line's number in the margin, since audits point to lines by number.
+/// The numbers sit in an indent every paragraph has, not in a ruler, so the text keeps its margin on the right.
+/// A long line that wraps is numbered once, and the lines the selection is on are numbered a shade darker.
+final class RulesTextView: NSTextView {
+    /// How far the text moves right to make room for the numbers.
+    static let gutter: CGFloat = 14
+    private static let numberFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+    private var scrollObserver: NSObjectProtocol?
+
+    /// Where the text starts, and the numbers end a little before.
+    private var textStart: CGFloat { textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0) + Self.gutter }
+
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        guard rect.minX < textStart else { return }
+        let ns = string as NSString
+        let origin = textContainerOrigin
+        let selection = selectedRange()
+        let active = window?.firstResponder === self
+        // Lines are counted from the first one drawn, so a redraw near the end of a long file doesn't count from the top.
+        var counted = 0, newlines = 0
+
+        func number(at offset: Int, baseline: CGFloat) {
+            guard offset == 0 || (offset <= ns.length && ns.character(at: offset - 1) == 10) else { return }
+            while counted < offset { if ns.character(at: counted) == 10 { newlines += 1 }; counted += 1 }
+            let line = ns.lineRange(for: NSRange(location: offset, length: 0))
+            let current = active && (NSIntersectionRange(line, selection).length > 0
+                || (selection.location >= line.location && selection.location < NSMaxRange(line))
+                || (selection.location == ns.length && NSMaxRange(line) == ns.length && !ns.hasSuffix("\n")))
+            let label = NSAttributedString(string: String(newlines + 1), attributes: [
+                .font: Self.numberFont,
+                .foregroundColor: current ? NSColor.secondaryLabelColor : NSColor.tertiaryLabelColor,
+            ])
+            label.draw(at: NSPoint(x: textStart - 12 - label.size().width, y: baseline - Self.numberFont.ascender))
+        }
+
+        if let layout = textLayoutManager, let content = layout.textContentManager {
+            // TextKit 2 puts the space between lines above a line of text, but inside the height of an empty one,
+            // so the baseline is found from the bottom of the line.
+            let font = MarkdownHighlighter.font
+            let height = ceil(font.ascender) + ceil(-font.descender)
+            let top = CGPoint(x: 0, y: max(0, rect.minY - origin.y))
+            let start = layout.textLayoutFragment(for: top)?.rangeInElement.location ?? layout.documentRange.location
+            layout.enumerateTextLayoutFragments(from: start, options: [.ensuresLayout]) { fragment in
+                let frame = fragment.layoutFragmentFrame
+                guard frame.minY + origin.y <= rect.maxY else { return false }
+                let offset = content.offset(from: content.documentRange.location, to: fragment.rangeInElement.location)
+                guard let first = fragment.textLineFragments.first else { return true }
+                number(at: offset, baseline: origin.y + frame.minY + first.typographicBounds.maxY - height + first.glyphOrigin.y)
+                return true
+            }
+        } else if let layout = layoutManager, let container = textContainer {
+            // TextKit 1, which the view falls back to if anything asks for its layout manager.
+            let glyphs = layout.glyphRange(forBoundingRect: rect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
+            layout.enumerateLineFragments(forGlyphRange: glyphs) { lineRect, _, _, range, _ in
+                number(at: layout.characterIndexForGlyph(at: range.location),
+                       baseline: origin.y + lineRect.minY + layout.location(forGlyphAt: range.location).y)
+            }
+        }
+    }
+
+    /// The numbers are drawn with the background, which an edit, a scroll or a new selection doesn't always redraw.
+    private func redrawNumbers() {
+        let visible = visibleRect
+        setNeedsDisplay(NSRect(x: 0, y: visible.minY, width: textStart, height: visible.height))
+    }
+
+    override func didChangeText() { super.didChangeText(); redrawNumbers() }
+    override func setFrameSize(_ size: NSSize) { super.setFrameSize(size); redrawNumbers() }
+    override func becomeFirstResponder() -> Bool { defer { redrawNumbers() }; return super.becomeFirstResponder() }
+    override func resignFirstResponder() -> Bool { defer { redrawNumbers() }; return super.resignFirstResponder() }
+
+    override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
+        super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
+        redrawNumbers()
+    }
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+        guard let clip = superview as? NSClipView else { return }
+        clip.postsBoundsChangedNotifications = true
+        scrollObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.redrawNumbers() }
+        }
+    }
+}
+
 @MainActor
 enum MarkdownHighlighter {
     static let size: CGFloat = 13
@@ -166,6 +257,9 @@ enum MarkdownHighlighter {
     static let paragraph: NSParagraphStyle = {
         let p = NSMutableParagraphStyle()
         p.lineSpacing = 4
+        // Room on the left for the line numbers.
+        p.firstLineHeadIndent = RulesTextView.gutter
+        p.headIndent = RulesTextView.gutter
         return p
     }()
     static var baseAttributes: [NSAttributedString.Key: Any] {

@@ -3,13 +3,13 @@
   <channel>
     <title>Rulebook</title>
     <item>
-      <title>0.2.2</title>
-      <pubDate>Sun, 15 Nov 2026 00:26:32 +0000</pubDate>
-      <sparkle:version>11</sparkle:version>
-      <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
+      <title>0.2.3</title>
+      <pubDate>Sun, 15 Nov 2026 00:37:53 +0000</pubDate>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>0.2.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<p>Audits are shorter: a verdict, Review Suggested Edits right under it, and each finding in a line or two. Audits made before this version keep their longer text until the file is audited again.</p>]]></description>
-      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.2.2/Rulebook.zip" length="4005981" type="application/octet-stream" sparkle:edSignature="8qXFB2Beiv1yriEXrxk9Y1WluMrSF4pvrKs5ouhgJBhPnaPAJfd0Wfhdtw6ZZJ/Ypoml++eDTzwG0AcXsvbGBg=="/>
+      <description><![CDATA[<p>The editor numbers its lines, so a finding that points to line 12 is easy to find.</p>]]></description>
+      <enclosure url="https://github.com/disinfeqt/rulebook/releases/download/v0.2.3/Rulebook.zip" length="4020645" type="application/octet-stream" sparkle:edSignature="msgOpLWld/KROTyPGCDtseOf1tLWIEYWd/0DQOzQG2xplifE/y6MoCnt+YNNjGhu9tJ+xsvz5XaCde64HLVvBA=="/>
     </item>
   </channel>
 </rss>

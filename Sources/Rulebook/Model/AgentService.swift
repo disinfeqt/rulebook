@@ -16,7 +16,6 @@ struct Assessment: Codable, Hashable {
         var title: String
         var detail: String
         var quote: String
-        var suggestion: String
         var id: String { title + "|" + quote }
     }
     /// How an audit came out, worst first.
@@ -35,7 +34,6 @@ struct Assessment: Codable, Hashable {
     }
     var verdict: String
     var summary: String
-    var strengths: [String]
     var issues: [Finding]
     var revised: String
     /// Hash of the saved file content that was audited.
@@ -492,27 +490,29 @@ enum AgentService {
     // MARK: Prompt audit
 
     static let auditSchema = """
-    {"type":"object","additionalProperties":false,"required":["score","verdict","summary","strengths","issues","revised"],"properties":{\
+    {"type":"object","additionalProperties":false,"required":["score","verdict","summary","issues","revised"],"properties":{\
     "score":{"type":"integer"},\
     "verdict":{"type":"string"},\
     "summary":{"type":"string"},\
-    "strengths":{"type":"array","items":{"type":"string"}},\
-    "issues":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","title","detail","quote","suggestion"],"properties":{\
+    "issues":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","title","detail","quote"],"properties":{\
     "severity":{"type":"string","enum":["high","medium","low"]},"title":{"type":"string"},"detail":{"type":"string"},\
-    "quote":{"type":"string"},"suggestion":{"type":"string"}}}},\
+    "quote":{"type":"string"}}}},\
     "revised":{"type":"string"}}}
     """
 
     static func auditReportFormat(language: AppLanguage) -> String {
         """
-        Report the finished audit as your structured final output. \
-        issues: one entry per finding. title names the pattern, detail says why it's a problem here, \
-        quote is the exact text from the file (empty if the finding is about something missing), \
-        suggestion is the proposed edit. severity reflects impact and confidence. \
+        Report the finished audit as your structured final output. It is shown in a narrow panel beside the file, \
+        so keep every field short and plain, and leave out how you worked: the scope, the target model, \
+        assumptions, group names or numbers, and checks that found nothing or didn't apply. \
+        verdict: a headline of 3 to 7 words. summary: one short sentence. \
+        issues: one entry per change worth making; leave out anything you would only flag without proposing a change. \
+        title: what's wrong, in a few words. detail: at most two short sentences on why it matters here and what to change, \
+        without repeating the quoted text. quote: the exact text from the file the finding is about, \
+        or an empty string if it's about something missing. severity reflects impact and confidence. \
         revised: the complete audited file with every proposed edit applied, or an empty string if you propose none. \
         score: an integer from 0 to 100 for how current, accurate and conflict-free the file is. \
-        verdict: a headline of 3 to 7 words. summary: 2 or 3 sentences. strengths: what to keep as is. \
-        Write verdict, summary, strengths, and each issue's title, detail and suggestion in \(language.promptName). \
+        Write verdict, summary, and each issue's title and detail in \(language.promptName). \
         Copy quote from the file unchanged, and write revised in the language the file is already written in. \
         Don't modify any files.
         """
@@ -541,7 +541,6 @@ enum AgentService {
             let score: Int
             let verdict: String
             let summary: String
-            let strengths: [String]
             let issues: [Assessment.Finding]
             let revised: String
         }
@@ -556,7 +555,7 @@ enum AgentService {
                                      appendSystemPrompt: auditReportFormat(language: language), cwd: cwd, cli: cli,
                                      model: model, allowSkills: true, progress: progress)
         let p = try JSONDecoder().decode(Payload.self, from: run.structured)
-        return Assessment(score: min(100, max(0, p.score)), verdict: p.verdict, summary: p.summary, strengths: p.strengths,
+        return Assessment(score: min(100, max(0, p.score)), verdict: p.verdict, summary: p.summary,
                           issues: p.issues, revised: p.revised, contentHash: "", date: Date(),
                           model: model.isEmpty ? "default" : model, costUSD: run.costUSD, durationSeconds: run.duration,
                           engine: engine.rawValue)

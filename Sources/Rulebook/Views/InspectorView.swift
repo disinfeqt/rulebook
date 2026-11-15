@@ -180,6 +180,8 @@ struct JobProgress: View {
     }
 }
 
+/// An audit: its verdict, the button for its edits, then each finding. The summary is left to the CLI:
+/// next to the verdict and the findings it only says the same things again.
 struct AssessmentView: View {
     let doc: Doc
     let assessment: Assessment
@@ -196,17 +198,15 @@ struct AssessmentView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        Text(assessment.summary.inlineMarkdown)
-            .fixedSize(horizontal: false, vertical: true)
-
-        ForEach(assessment.issues.sorted { rank($0) < rank($1) }) { finding in
-            FindingRow(finding: finding, editor: editor)
-        }
 
         if !assessment.revised.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Button("Review Suggested Edits") {
                 model.revisionReview = RevisionReview(docID: doc.id, revised: assessment.revised)
             }
+        }
+
+        ForEach(assessment.issues.sorted { rank($0) < rank($1) }) { finding in
+            FindingRow(finding: finding, editor: editor)
         }
     }
 
@@ -215,8 +215,8 @@ struct AssessmentView: View {
     }
 }
 
-/// A finding, written out in full: what it is, why it matters here, the text it's about and what to do.
-/// The quoted text is a button that shows where it is in the editor.
+/// A finding, set like an issue: what's wrong and why. A click shows the text it's about in the editor,
+/// and the edit it proposes is in Review Suggested Edits.
 struct FindingRow: View {
     let finding: Assessment.Finding
     let editor: EditorController
@@ -230,35 +230,21 @@ struct FindingRow: View {
     }
 
     var body: some View {
+        let quote = finding.quote.trimmingCharacters(in: .whitespacesAndNewlines)
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Circle().fill(color).frame(width: 7, height: 7)
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] + 3 }
                 .frame(width: 14)
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(finding.title).fontWeight(.medium).fixedSize(horizontal: false, vertical: true)
                 Text(finding.detail.inlineMarkdown)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if !finding.quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button { editor.reveal(finding.quote, beep: false) } label: {
-                        Text(verbatim: finding.quote.trimmingCharacters(in: .whitespacesAndNewlines))
-                            .font(.callout.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .multilineTextAlignment(.leading)
-                            .padding(.leading, 8)
-                            .overlay(alignment: .leading) { Rectangle().fill(.quaternary).frame(width: 2) }
-                    }
-                    .buttonStyle(.plain)
-                    .help("Show in the file")
-                }
-                if !finding.suggestion.isEmpty {
-                    Text(finding.suggestion.inlineMarkdown)
-                        .font(.callout)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture { if !quote.isEmpty { editor.reveal(quote, beep: false) } }
+        .help(quote.isEmpty ? "" : L("Show in the file"))
     }
 }
